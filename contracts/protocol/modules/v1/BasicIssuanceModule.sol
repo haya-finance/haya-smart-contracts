@@ -15,18 +15,18 @@
 pragma solidity 0.6.10;
 pragma experimental "ABIEncoderV2";
 
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
-import { SafeCast } from "@openzeppelin/contracts/utils/SafeCast.sol";
-import { SafeMath } from "@openzeppelin/contracts/math/SafeMath.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import {SafeCast} from "@openzeppelin/contracts/utils/SafeCast.sol";
+import {SafeMath} from "@openzeppelin/contracts/math/SafeMath.sol";
 
-import { IController } from "../../../interfaces/IController.sol";
-import { IManagerIssuanceHook } from "../../../interfaces/IManagerIssuanceHook.sol";
-import { Invoke } from "../../lib/Invoke.sol";
-import { ISetToken } from "../../../interfaces/ISetToken.sol";
-import { ModuleBase } from "../../lib/ModuleBase.sol";
-import { Position } from "../../lib/Position.sol";
-import { PreciseUnitMath } from "../../../lib/PreciseUnitMath.sol";
+import {IController} from "../../../interfaces/IController.sol";
+import {IManagerIssuanceHook} from "../../../interfaces/IManagerIssuanceHook.sol";
+import {Invoke} from "../../lib/Invoke.sol";
+import {ISetToken} from "../../../interfaces/ISetToken.sol";
+import {ModuleBase} from "../../lib/ModuleBase.sol";
+import {Position} from "../../lib/Position.sol";
+import {PreciseUnitMath} from "../../../lib/PreciseUnitMath.sol";
 
 /**
  * @title BasicIssuanceModule
@@ -87,14 +87,15 @@ contract BasicIssuanceModule is ModuleBase, ReentrancyGuard {
         ISetToken _setToken,
         uint256 _quantity,
         address _to
-    )
-        external
-        nonReentrant
-        onlyValidAndInitializedSet(_setToken)
-    {
+    ) external nonReentrant onlyValidAndInitializedSet(_setToken) {
         require(_quantity > 0, "Issue quantity must be > 0");
 
-        address hookContract = _callPreIssueHooks(_setToken, _quantity, msg.sender, _to);
+        address hookContract = _callPreIssueHooks(
+            _setToken,
+            _quantity,
+            msg.sender,
+            _to
+        );
 
         (
             address[] memory components,
@@ -115,7 +116,13 @@ contract BasicIssuanceModule is ModuleBase, ReentrancyGuard {
         // Mint the SetToken
         _setToken.mint(_to, _quantity);
 
-        emit SetTokenIssued(address(_setToken), msg.sender, _to, hookContract, _quantity);
+        emit SetTokenIssued(
+            address(_setToken),
+            msg.sender,
+            _to,
+            hookContract,
+            _quantity
+        );
     }
 
     /**
@@ -130,11 +137,7 @@ contract BasicIssuanceModule is ModuleBase, ReentrancyGuard {
         ISetToken _setToken,
         uint256 _quantity,
         address _to
-    )
-        external
-        nonReentrant
-        onlyValidAndInitializedSet(_setToken)
-    {
+    ) external nonReentrant onlyValidAndInitializedSet(_setToken) {
         require(_quantity > 0, "Redeem quantity must be > 0");
 
         // Burn the SetToken - ERC20's internal burn already checks that the user has enough balance
@@ -144,19 +147,20 @@ contract BasicIssuanceModule is ModuleBase, ReentrancyGuard {
         address[] memory components = _setToken.getComponents();
         for (uint256 i = 0; i < components.length; i++) {
             address component = components[i];
-            require(!_setToken.hasExternalPosition(component), "Only default positions are supported");
+            require(
+                !_setToken.hasExternalPosition(component),
+                "Only default positions are supported"
+            );
 
-            uint256 unit = _setToken.getDefaultPositionRealUnit(component).toUint256();
+            uint256 unit = _setToken
+                .getDefaultPositionRealUnit(component)
+                .toUint256();
 
             // Use preciseMul to round down to ensure overcollateration when small redeem quantities are provided
             uint256 componentQuantity = _quantity.preciseMul(unit);
 
             // Instruct the SetToken to transfer the component to the user
-            _setToken.strictInvokeTransfer(
-                component,
-                _to,
-                componentQuantity
-            );
+            _setToken.strictInvokeTransfer(component, _to, componentQuantity);
         }
 
         emit SetTokenRedeemed(address(_setToken), msg.sender, _to, _quantity);
@@ -214,9 +218,15 @@ contract BasicIssuanceModule is ModuleBase, ReentrancyGuard {
         uint256[] memory notionalUnits = new uint256[](components.length);
 
         for (uint256 i = 0; i < components.length; i++) {
-            require(!_setToken.hasExternalPosition(components[i]), "Only default positions are supported");
+            require(
+                !_setToken.hasExternalPosition(components[i]),
+                "Only default positions are supported"
+            );
 
-            notionalUnits[i] = _setToken.getDefaultPositionRealUnit(components[i]).toUint256().preciseMulCeil(_quantity);
+            notionalUnits[i] = _setToken
+                .getDefaultPositionRealUnit(components[i])
+                .toUint256()
+                .preciseMulCeil(_quantity);
         }
 
         return (components, notionalUnits);
@@ -233,10 +243,7 @@ contract BasicIssuanceModule is ModuleBase, ReentrancyGuard {
         uint256 _quantity,
         address _caller,
         address _to
-    )
-        internal
-        returns(address)
-    {
+    ) internal returns (address) {
         IManagerIssuanceHook preIssueHook = managerIssuanceHook[_setToken];
         if (address(preIssueHook) != address(0)) {
             preIssueHook.invokePreIssueHook(_setToken, _quantity, _caller, _to);

@@ -2,7 +2,7 @@
  * @Author: Dev FullStackBuilds@gmail.com
  * @Date: 2024-03-31 10:58:01
  * @LastEditors: Dev FullStackBuilds@gmail.com
- * @LastEditTime: 2024-03-31 11:55:16
+ * @LastEditTime: 2024-03-31 15:10:17
  * @FilePath: /haya-smart-contracts/hardhat.config.ts
  * @Description: 
  * 
@@ -81,6 +81,13 @@ const config: HardhatUserConfig = {
     // Your API key for Etherscan
     // Obtain one at https://etherscan.io/
     apiKey: process.env.ETHERSCAN_TOKEN
+  },
+  sourcify: {
+    enabled: true,
+    // Optional: specify a different Sourcify server
+    apiUrl: "https://sourcify.dev/server",
+    // Optional: specify a different Sourcify repository
+    browserUrl: "https://repo.sourcify.dev",
   },
   mocha: mochaConfig,
   typechain: {
