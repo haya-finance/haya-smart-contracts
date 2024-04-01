@@ -49,11 +49,11 @@ contract AuctionRebalanceIssuanceModule is ModuleBase, ReentrancyGuard {
         SUCCESSED,
         FAILURED
     }
-    int256 public constant virtualBaseAmount = 1 ether; // Just base for caculate
+    int256 public constant VirtualBaseAmount = 1 ether; // Just base for caculate
     /* ============ State Variables ============ */
     mapping(ISetToken => uint256) public serialIds; // For recording rebalance serial, start at No 1.
     mapping(ISetToken => mapping(uint256 => int256)) public minPrices; // Each setup balance minimum price record.
-    mapping(ISetToken => mapping(uint256 => int256)) public winningBidPrices; // Price win the bid.
+    mapping(ISetToken => mapping(uint256 => int24)) public winningBidTick; // Price win the bid.
     mapping(ISetToken => mapping(uint256 => RebalanceInfo))
         public rebalanceInfos; // Recorded all rebanalce info.
 
@@ -65,7 +65,7 @@ contract AuctionRebalanceIssuanceModule is ModuleBase, ReentrancyGuard {
         public sharesOnTicks;
 
     mapping(ISetToken => mapping(uint256 => InternalCaculateInfo))
-        private internalCaculateInfos; // Recorded all caculate info.
+        private _internalCaculateInfos; // Recorded all caculate info.
 
     struct RebalanceInfo {
         RebalanceStatus status; // Status.
@@ -76,14 +76,14 @@ contract AuctionRebalanceIssuanceModule is ModuleBase, ReentrancyGuard {
         int256[] rebalanceAmounts; // List of component tokens rebalance amounts, maybe nagtive.
         uint256 minBidAmount; // Minimum sets required for each bid.
         int256 minTotalAmountsSetsRequire; // Minimum sets required for the corresponding token quantity raised.
-        int256 maxTotalAmountsSetsRequire; // Maximum sets required for the corresponding token quantity raised.
+        int256 maxTotalAmountsSetsRequire; // Just for caculate price spacing
         int24 numOfPriceSegments; // For caculate rise price step or ticks from 0 ~ numOfPriceSegments.
     }
 
     // internal caculate to avoid duplicate calculations and save gas
     struct InternalCaculateInfo {
         int256 minBasePrice; // can be nagtive. Decimal 10**18.
-        int256 maxBasePrice;
+        int256 maxBasePrice; // can be nagtive. Decimal 10**18.
         int256 priceSpacing; // price step, caculate from `numOfPriceSegments`
     }
 
@@ -143,14 +143,14 @@ contract AuctionRebalanceIssuanceModule is ModuleBase, ReentrancyGuard {
         rInfo.rebalanceComponents = _rebalanceComponents;
         rInfo.numOfPriceSegments = _numOfPriceSegments;
 
-        InternalCaculateInfo storage iInfo = internalCaculateInfos[_setToken][
+        InternalCaculateInfo storage iInfo = _internalCaculateInfos[_setToken][
             id
         ];
         int256 minBasePrice = _minAmountsSetsRequire.preciseDiv(
-            virtualBaseAmount
+            VirtualBaseAmount
         );
         int256 maxBasePrice = _maxAmountsSetsRequire.preciseDiv(
-            virtualBaseAmount
+            VirtualBaseAmount
         );
         iInfo.priceSpacing = maxBasePrice.sub(minBasePrice).div(
             _numOfPriceSegments
@@ -158,12 +158,67 @@ contract AuctionRebalanceIssuanceModule is ModuleBase, ReentrancyGuard {
         iInfo.minBasePrice = minBasePrice;
         iInfo.maxBasePrice = maxBasePrice;
     }
-
+    // ATAINTION !!!
+    // cant choose sets amount as param, calulate amount div target price, but price maybe zero.
     function bid(
         ISetToken _setToken,
         int24 tick,
         int256 virtualAmount
-    ) external nonReentrant onlyAllowedBidTime(_setToken) {}
+    ) external nonReentrant onlyAllowedBidTime(_setToken) {
+        require(virtualAmount > 0, "Virtual amount must be positive number");
+        uint256 serialId = serialIds[_setToken];
+        RebalanceInfo storage rInfo = rebalanceInfos[_setToken][serialId];
+        InternalCaculateInfo memory iInfo = _internalCaculateInfos[_setToken][
+            serialId
+        ];
+        int256 setsTokenAmountNeeded = _caculateSetsTokenNeeded(
+            iInfo.minBasePrice,
+            iInfo.priceSpacing,
+            tick,
+            virtualAmount
+        );
+        require(
+            setsAmountNeeded >= rInfo.minBidAmount,
+            "Sets quantity not meeting the requirements"
+        );
+
+        if (setsAmountNeeded < 0) {
+            // TODO: transfer to this contract
+        }
+        ValuePosition.Info storage valuePosition = valuePositions[_setToken]
+            .get(serialId, msg.sender, tick);
+        valuePosition.add(virtualAmount);
+
+        mapping(int16 => uint256) storage tickBitmap = tickBitmaps[_setToken][
+            serialId
+        ];
+        (,bool initialize) = tickBitmap.nextInitializedTickWithinOneWord(tick, 1, false)
+        if (!initialize) {
+            tickBitmap.flipTick(tick, 1);
+        }
+    }
+
+    function _caculateSetsTokenNeeded(
+        int256 minBasePrice,
+        int256 priceSpacing,
+        int24 tick,
+        int256 virtualAmount
+    ) internal view returns (int256) {
+        int256 targetPrice = _caculateTargetPriceWithTickAndVirtualAmount(
+            iInfo.minBasePrice,
+            iInfo.priceSpacing,
+            tick
+        );
+        return virtualAmount.preciseMul(targetPrice);
+    }
+
+    function _caculateTargetPriceWithTickAndVirtualAmount(
+        int256 minBasePrice,
+        int256 priceSpacing,
+        int24 tick
+    ) internal view returns (int256) {
+        return minBasePrice.add(tick.mul(priceSpacing));
+    }
 
     function claim(
         ISetToken _setToken,
@@ -212,11 +267,19 @@ contract AuctionRebalanceIssuanceModule is ModuleBase, ReentrancyGuard {
 
         valuePosition.claimed = true;
     }
-
-    function excutionBidResult(
-        ISetToken _setToken,
-        bool validated
+    function revertBidResult(
+        ISetToken _setToken
     ) external nonReentrant onlyManagerAndValidSet(_setToken) {
+        _excutionBidResult(_setToken, false);
+    }
+
+    function passBidResult(
+        ISetToken _setToken
+    ) external nonReentrant onlyManagerAndValidSet(_setToken) {
+        _excutionBidResult(_setToken, true);
+    }
+
+    function _excutionBidResult(ISetToken _setToken, bool validated) internal {
         uint256 id = serialIds[_setToken];
         RebalanceInfo memory info = rebalanceInfos[_setToken][id];
         require(
@@ -227,12 +290,13 @@ contract AuctionRebalanceIssuanceModule is ModuleBase, ReentrancyGuard {
             info.rebalanceStartTime + info.rebalanceDuration < block.timestamp,
             "Not excution time"
         );
-        RebalanceStatus status = RebalanceStatus.FAILURED;
         if (validated) {
-            status = RebalanceStatus.SUCCESSED;
+            rebalanceInfos[_setToken][id].status = RebalanceStatus.SUCCESSED;
+            _transferAndUpdatePositionState(id);
+        } else {
+            rebalanceInfos[_setToken][id].status = RebalanceStatus.FAILURED;
+            // Do nothing
         }
-        rebalanceInfos[_setToken][id].status = status;
-        _transferAndUpdatePositionState(id);
     }
 
     function _transferAndUpdatePositionState(uint256 id) internal {
@@ -265,14 +329,6 @@ contract AuctionRebalanceIssuanceModule is ModuleBase, ReentrancyGuard {
         onlySetManager(_setToken, msg.sender)
         onlyValidAndPendingSet(_setToken)
     {
-        ISetToken.Position[] memory positions = _setToken.getPositions();
-        for (uint256 i = 0; i < positions.length; i++) {
-            ISetToken.Position memory position = positions[i];
-            require(
-                position.positionState == 0,
-                "External positions not allowed"
-            );
-        }
         _setToken.initializeModule();
     }
 
@@ -291,6 +347,11 @@ contract AuctionRebalanceIssuanceModule is ModuleBase, ReentrancyGuard {
                 block.timestamp,
             "Not bidding time"
         );
+    }
+    function isInitialized(int24 tick) private view returns (bool) {
+        (int24 next, bool initialized) = bitmap
+            .nextInitializedTickWithinOneWord(tick, 1, true);
+        return next == tick ? initialized : false;
     }
     /**
      * Reverts as this module should not be removable after added. Users should always

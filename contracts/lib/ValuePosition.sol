@@ -19,9 +19,21 @@ library ValuePosition {
         position = self[keccak256(abi.encodePacked(serialId, owner, tick))];
     }
 
-    function update(Info storage self, int256 virtualAmount) internal {
+    function add(
+        Info storage self,
+        int256 virtualAmount
+    ) internal returns (int256 virtualAmountAfter) {
         int256 virtualAmountBefore = self.virtualAmount;
         int256 virtualAmountAfter = virtualAmountBefore + virtualAmount;
+        self.virtualAmount = virtualAmountAfter;
+    }
+
+    function sub(
+        Info storage self,
+        int256 virtualAmount
+    ) internal returns (int256 virtualAmountAfter) {
+        int256 virtualAmountBefore = self.virtualAmount;
+        int256 virtualAmountAfter = virtualAmountBefore - virtualAmount;
         self.virtualAmount = virtualAmountAfter;
     }
     function setClaimed(Info storage self) internal {
