@@ -24,7 +24,7 @@ library ValuePosition {
         int256 virtualAmount
     ) internal returns (int256 virtualAmountAfter) {
         int256 virtualAmountBefore = self.virtualAmount;
-        int256 virtualAmountAfter = virtualAmountBefore + virtualAmount;
+        virtualAmountAfter = virtualAmountBefore + virtualAmount;
         self.virtualAmount = virtualAmountAfter;
     }
 
@@ -33,7 +33,7 @@ library ValuePosition {
         int256 virtualAmount
     ) internal returns (int256 virtualAmountAfter) {
         int256 virtualAmountBefore = self.virtualAmount;
-        int256 virtualAmountAfter = virtualAmountBefore - virtualAmount;
+        virtualAmountAfter = virtualAmountBefore - virtualAmount;
         self.virtualAmount = virtualAmountAfter;
     }
     function setClaimed(Info storage self) internal {
