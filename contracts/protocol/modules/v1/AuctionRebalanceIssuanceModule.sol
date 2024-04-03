@@ -165,6 +165,7 @@ contract AuctionRebalanceIssuanceModule is ModuleBase, ReentrancyGuard {
         info.rebalanceStartTime = _rebalanceStartTime;
         info.rebalanceDuration = _rebalanceDuration;
         info.rebalanceComponents = _rebalanceComponents;
+        info.rebalanceAmounts = _rebalanceAmounts;
         info.minTotalAmountsSetsRequire = _minAmountsSetsRequire;
         info.minBidAmount = _minBidAmount;
         info.priceSpacing = _priceSpacing;
@@ -287,9 +288,6 @@ contract AuctionRebalanceIssuanceModule is ModuleBase, ReentrancyGuard {
         _setToken.unlock();
     }
 
-    /**
-     * @param _setToken   Address of the Set Token
-     */
     function initialize(
         ISetToken _setToken
     )
@@ -300,15 +298,128 @@ contract AuctionRebalanceIssuanceModule is ModuleBase, ReentrancyGuard {
         _setToken.initializeModule();
     }
 
-    /**
-     * Called by a SetToken to notify that this module was removed from the SetToken.
-     * Don't delete the data to prevent users who haven't withdrawn from operating properly
-     */
     function removeModule() external override {}
 
     /* ============ External View Functions ============ */
 
-    //TODO: Front need get
+    function getRequiredOrRewardsSetsAmountsAtTickForBid(
+        ISetToken _setToken,
+        uint256 _serialId,
+        int24 _tick,
+        int256 _virtualAmount
+    ) external view returns (int256 amount) {
+        require(_virtualAmount > 0, "Virtual amount must be positive number");
+        require(_tick >= 0, "Tick need be bigger than 0");
+        RebalanceInfo memory info = rebalanceInfos[_setToken][_serialId];
+        amount = _caculateRequiredOrRewardsSetsAmountsAtTickForBid(
+            info._minBasePrice,
+            info.priceSpacing,
+            _tick,
+            _virtualAmount
+        );
+        if (amount >= 0) {
+            amount = amount.add(1);
+        }
+    }
+
+    function getRequiredOrRewardComponentsAndAmountsAtTickForBid(
+        ISetToken _setToken,
+        uint256 _serialId,
+        int256 _virtualAmount
+    )
+        external
+        view
+        returns (address[] memory components, int256[] memory amounts)
+    {
+        require(_virtualAmount > 0, "Virtual amount must be positive number");
+        RebalanceInfo memory info = rebalanceInfos[_setToken][_serialId];
+        components = info.rebalanceComponents;
+        int256[] memory rebalanceAmounts = info.rebalanceAmounts;
+        uint256 componentsLength = components.length;
+        amounts = new int256[](componentsLength);
+        for (uint256 i = 0; i < componentsLength; i++) {
+            int256 amount = rebalanceAmounts[i].preciseMul(_virtualAmount);
+            if (amounts[i] < 0) {
+                amounts[i] = amount.add(-1);
+            } else {
+                amounts[i] = amount;
+            }
+        }
+    }
+
+    function getFinalWinningTick(
+        ISetToken _setToken,
+        uint256 _serialId
+    ) external view returns (int24 winTick) {
+        winTick = winningBidTick[_setToken][_serialId];
+    }
+
+    function getPreCalculatedWinningTick(
+        ISetToken _setToken,
+        uint256 _serialId
+    )
+        external
+        view
+        returns (
+            int24 winTick,
+            int256 totalVirtualAmount,
+            int256 lastTickVirtualAmount
+        )
+    {
+        (
+            winTick,
+            totalVirtualAmount,
+            lastTickVirtualAmount
+        ) = _searchWinningBidTick(_setToken, _serialId);
+    }
+
+    function getAccountTotalVirtualAmountAtTick(
+        ISetToken _setToken,
+        uint256 _serialId,
+        address _account,
+        int24 _tick
+    ) external view returns (int256) {
+        return
+            _getAccountVirtualAmountAtTick(
+                _setToken,
+                _serialId,
+                _account,
+                _tick
+            );
+    }
+
+    function getActualBiddedVirtualAmount(
+        ISetToken _setToken,
+        uint256 _serialId,
+        address _account,
+        int24 _tick
+    ) external view returns (int256) {
+        require(_tick >= 0, "Tick need be bigger than 0");
+        (
+            int24 winTick,
+            int256 totalVirtualAmount,
+            int256 lastTickVirtualAmount
+        ) = _searchWinningBidTick(_setToken, _serialId);
+        int256 exactTickProportion = VIRTUAL_BASE_AMOUNT;
+        if (totalVirtualAmount > VIRTUAL_BASE_AMOUNT) {
+            int256 overBidVirtualAmount = totalVirtualAmount.sub(
+                VIRTUAL_BASE_AMOUNT
+            );
+            exactTickProportion = lastTickVirtualAmount
+                .sub(overBidVirtualAmount)
+                .preciseDiv(lastTickVirtualAmount);
+        }
+        if (_tick < winTick) {
+            return 0;
+        }
+        int256 accountVirtualAmount = _getAccountVirtualAmountAtTick(
+            _setToken,
+            _serialId,
+            _account,
+            _tick
+        );
+        return accountVirtualAmount.preciseMul(exactTickProportion);
+    }
 
     /* ============ Internal Functions ============ */
 
@@ -321,12 +432,12 @@ contract AuctionRebalanceIssuanceModule is ModuleBase, ReentrancyGuard {
         require(_tick >= 0, "Tick need be bigger than 0");
         uint256 serialId = serialIds[_setToken];
         RebalanceInfo storage info = rebalanceInfos[_setToken][serialId];
-        int256 setsTokenAmountNeeded = _caculateSetsTokenNeeded(
-            info._minBasePrice,
-            info.priceSpacing,
-            _tick,
-            _virtualAmount
-        );
+        int256 setsTokenAmountNeeded = _caculateRequiredOrRewardsSetsAmountsAtTickForBid(
+                info._minBasePrice,
+                info.priceSpacing,
+                _tick,
+                _virtualAmount
+            );
         require(
             setsTokenAmountNeeded >= info.minBidAmount,
             "Sets quantity not meeting the requirements"
@@ -340,9 +451,9 @@ contract AuctionRebalanceIssuanceModule is ModuleBase, ReentrancyGuard {
             info.rebalanceAmounts
         );
 
-        ValuePosition.Info storage valuePosition = valuePositions[_setToken]
+        ValuePosition.Info storage _valuePosition = valuePositions[_setToken]
             .get(serialId, msg.sender, _tick);
-        valuePosition.add(_virtualAmount);
+        _valuePosition.add(_virtualAmount);
 
         mapping(int16 => uint256) storage tickBitmap = tickBitmaps[_setToken][
             serialId
@@ -368,17 +479,19 @@ contract AuctionRebalanceIssuanceModule is ModuleBase, ReentrancyGuard {
     function _cancelBid(ISetToken _setToken, int24 _tick) internal {
         require(_tick >= 0, "Tick need be bigger than 0");
         uint256 serialId = serialIds[_setToken];
-        ValuePosition.Info storage valuePosition = valuePositions[_setToken]
+        ValuePosition.Info storage _valuePosition = valuePositions[_setToken]
             .get(serialId, msg.sender, _tick);
-        int256 virtualAmount = valuePosition.virtualAmount;
+        int256 virtualAmount = _valuePosition.virtualAmount;
+        _valuePosition.sub(virtualAmount);
         require(virtualAmount > 0, "There is no corresponding asset");
         RebalanceInfo memory info = rebalanceInfos[_setToken][serialId];
-        int256 setsTokenAmountNeeded = _caculateSetsTokenNeeded(
-            info._minBasePrice,
-            info.priceSpacing,
-            _tick,
-            virtualAmount
-        );
+        int256 setsTokenAmountNeeded = _caculateRequiredOrRewardsSetsAmountsAtTickForBid(
+                info._minBasePrice,
+                info.priceSpacing,
+                _tick,
+                virtualAmount
+            );
+
         _rollbackBidSets(_setToken, msg.sender, setsTokenAmountNeeded);
         _rollbackBidToken(
             msg.sender,
@@ -434,21 +547,21 @@ contract AuctionRebalanceIssuanceModule is ModuleBase, ReentrancyGuard {
         address _account,
         int24 _tick
     ) internal {
-        ValuePosition.Info storage valuePosition = valuePositions[_setToken]
+        ValuePosition.Info storage _valuePosition = valuePositions[_setToken]
             .get(_serialId, _account, _tick);
-        require(!valuePosition.claimed, "Already been claimed");
-        int256 virtualAmount = valuePosition.virtualAmount;
+        require(!_valuePosition.claimed, "Already been claimed");
+        int256 virtualAmount = _valuePosition.virtualAmount;
         require(virtualAmount > 0, "There is no corresponding asset");
 
-        valuePosition.claimed = true;
+        _valuePosition.claimed = true;
 
         RebalanceInfo memory info = rebalanceInfos[_setToken][_serialId];
-        int256 setsTokenAmountNeeded = _caculateSetsTokenNeeded(
-            info._minBasePrice,
-            info.priceSpacing,
-            _tick,
-            virtualAmount
-        );
+        int256 setsTokenAmountNeeded = _caculateRequiredOrRewardsSetsAmountsAtTickForBid(
+                info._minBasePrice,
+                info.priceSpacing,
+                _tick,
+                virtualAmount
+            );
         _rollbackBidSets(_setToken, _account, setsTokenAmountNeeded);
         _rollbackBidToken(
             _account,
@@ -464,20 +577,20 @@ contract AuctionRebalanceIssuanceModule is ModuleBase, ReentrancyGuard {
         address _account,
         int24 _tick
     ) internal {
-        ValuePosition.Info storage valuePosition = valuePositions[_setToken]
+        ValuePosition.Info storage _valuePosition = valuePositions[_setToken]
             .get(_serialId, _account, _tick);
-        require(!valuePosition.claimed, "Already been claimed");
-        int256 virtualAmount = valuePosition.virtualAmount;
+        require(!_valuePosition.claimed, "Already been claimed");
+        int256 virtualAmount = _valuePosition.virtualAmount;
         require(virtualAmount > 0, "There is no corresponding asset");
-        valuePosition.claimed = true;
+        _valuePosition.claimed = true;
 
         RebalanceInfo memory info = rebalanceInfos[_setToken][_serialId];
-        int256 setsTokenAmountNeeded = _caculateSetsTokenNeeded(
-            info._minBasePrice,
-            info.priceSpacing,
-            _tick,
-            virtualAmount
-        );
+        int256 setsTokenAmountNeeded = _caculateRequiredOrRewardsSetsAmountsAtTickForBid(
+                info._minBasePrice,
+                info.priceSpacing,
+                _tick,
+                virtualAmount
+            );
         int24 winTick = winningBidTick[_setToken][_serialId];
 
         if (_tick < winTick) {
@@ -499,12 +612,12 @@ contract AuctionRebalanceIssuanceModule is ModuleBase, ReentrancyGuard {
                     _serialId
                 ].preciseMul(virtualAmount);
             }
-            int256 ultimatelyConsumedSets = _caculateSetsTokenNeeded(
-                info._minBasePrice,
-                info.priceSpacing,
-                winTick,
-                biddedVirtualAmount
-            );
+            int256 ultimatelyConsumedSets = _caculateRequiredOrRewardsSetsAmountsAtTickForBid(
+                    info._minBasePrice,
+                    info.priceSpacing,
+                    winTick,
+                    biddedVirtualAmount
+                );
 
             _rollbackBidSets(
                 _setToken,
@@ -619,7 +732,7 @@ contract AuctionRebalanceIssuanceModule is ModuleBase, ReentrancyGuard {
             if (totalAmount < 0) {
                 int256 amount2Transfer = totalAmount
                     .preciseMul(_virtualAmount)
-                    .add(1); // trik, Why didn't you choose to subtract one from the time of withdrawal, because it is possible that the user will deposit multiple times, but only once withdraw.
+                    .add(-1); // trik, Why didn't you choose to subtract one from the time of withdrawal, because it is possible that the user will deposit multiple times, but only once withdraw.
                 transferFrom(
                     IERC20(_components[i]),
                     _account,
@@ -669,12 +782,12 @@ contract AuctionRebalanceIssuanceModule is ModuleBase, ReentrancyGuard {
                 totalVirtualAmount = VIRTUAL_BASE_AMOUNT;
             }
 
-            int256 ultimatelyConsumedSets = _caculateSetsTokenNeeded(
-                info._minBasePrice,
-                info.priceSpacing,
-                winTick,
-                totalVirtualAmount
-            );
+            int256 ultimatelyConsumedSets = _caculateRequiredOrRewardsSetsAmountsAtTickForBid(
+                    info._minBasePrice,
+                    info.priceSpacing,
+                    winTick,
+                    totalVirtualAmount
+                );
 
             _transferTokenAndUpdatePositionState(
                 _setToken,
@@ -805,7 +918,18 @@ contract AuctionRebalanceIssuanceModule is ModuleBase, ReentrancyGuard {
         ] = totalVirtualAmountAfter;
     }
 
-    function _caculateSetsTokenNeeded(
+    function _getAccountVirtualAmountAtTick(
+        ISetToken _setToken,
+        uint256 _serialId,
+        address _account,
+        int24 _tick
+    ) internal view returns (int256) {
+        ValuePosition.Info memory _valuePosition = valuePositions[_setToken]
+            .get(_serialId, _account, _tick);
+        return _valuePosition.virtualAmount;
+    }
+
+    function _caculateRequiredOrRewardsSetsAmountsAtTickForBid(
         int256 _minBasePrice,
         int256 _priceSpacing,
         int24 _tick,
