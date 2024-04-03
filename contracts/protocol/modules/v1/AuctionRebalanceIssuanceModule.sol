@@ -19,8 +19,6 @@ pragma experimental "ABIEncoderV2";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Math} from "@openzeppelin/contracts/math/Math.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
-import {SafeCast} from "@openzeppelin/contracts/utils/SafeCast.sol";
-import {SafeMath} from "@openzeppelin/contracts/math/SafeMath.sol";
 import {Invoke} from "../../lib/Invoke.sol";
 import {Position} from "../../lib/Position.sol";
 import {PreciseUnitMath} from "../../../lib/PreciseUnitMath.sol";
@@ -35,15 +33,12 @@ contract AuctionRebalanceIssuanceModule is ModuleBase, ReentrancyGuard {
     using Invoke for ISetToken;
     using Position for ISetToken.Position;
     using Position for ISetToken;
-    using PreciseUnitMath for uint256;
     using PreciseUnitMath for int256;
-    using SafeMath for uint256;
-    using SafeCast for int256;
     using TickBitmap for mapping(int16 => uint256);
     using ValuePosition for ValuePosition.Info;
     using ValuePosition for mapping(bytes32 => ValuePosition.Info);
     using AddressArrayUtils for address[];
-    using AddressArrayUtils for IERC20[];
+
     /* ============ Enums ============ */
     enum RebalanceStatus {
         NONE, // Indicates no rebalance action can be taken
@@ -52,25 +47,29 @@ contract AuctionRebalanceIssuanceModule is ModuleBase, ReentrancyGuard {
         FAILURED
     }
 
-    int256 public immutable VirtualBaseAmount; // Just base for caculate
+    /* ============ Immutable ============ */
+    int256 public immutable VIRTUAL_BASE_AMOUNT; // Just base for caculate
+
     /* ============ State Variables ============ */
+
     mapping(ISetToken => uint256) public serialIds; // For recording rebalance serial, start at No 1.
-    mapping(ISetToken => mapping(uint256 => int24)) public maxTicks; // Each setup balance maximum tick record.
+    mapping(ISetToken => mapping(uint256 => int24)) public maxTicks; // Each setup balance maximum tick record. If the highest record is cancelled, the maximum value will remain.
     mapping(ISetToken => mapping(uint256 => int24)) public winningBidTick; // Price win the bid. If win tick = 0, bid may not get full. _totalVirtualAmount will be sign.
     mapping(ISetToken => mapping(uint256 => RebalanceInfo))
-        public rebalanceInfos; // Recorded all rebanalce info.
+        public rebalanceInfos; // Recorded all rebalance info.
 
     mapping(ISetToken => mapping(uint256 => mapping(int16 => uint256)))
         public tickBitmaps;
     mapping(ISetToken => mapping(bytes32 => ValuePosition.Info))
         public valuePositions; // Storage user amount in tick and status claimed
     mapping(ISetToken => mapping(uint256 => mapping(int24 => int256)))
-        public virtualAmountsOnTicks;
+        public virtualAmountsOnTicks; // The total amount reserved on each tick
 
     // This variable can only be set if it is overrecruited
     mapping(ISetToken => mapping(uint256 => int256))
-        public exactTickAboveGetProportion; // The percentage of tokens that users who are bid at the tick will be able to acquire 10% = 0.1*10**18
+        public exactTickAboveGetProportion; // The percentage of tokens that users who are bid at exact tick will be able to acquire 10% = 0.1*10**18
 
+    /* ============ Structs ============ */
     struct RebalanceInfo {
         RebalanceStatus status; // Status.
         int256 positionMultiplier; // Position multiplier when target units were calculated.
@@ -82,14 +81,9 @@ contract AuctionRebalanceIssuanceModule is ModuleBase, ReentrancyGuard {
         int256 minTotalAmountsSetsRequire; // Minimum sets required for the corresponding token quantity raised.
         int256 priceSpacing;
         int256 _minBasePrice; // For internal can be nagtive. Decimal 10**18.
-        // _totalVirtualAmount > VirtualBaseAmount: overrecruited.
+        // _totalVirtualAmount > VIRTUAL_BASE_AMOUNT: overrecruited.
         int256 _totalVirtualAmount; //  When the bid is not completed, the final total virtual amount. Also save gas.
     }
-
-    function getBiddingSetsTokenAmountFromTick(
-        ISetToken _setToken,
-        int24 tick
-    ) public view returns (int256) {}
 
     /* ============ Modifiers ============ */
 
@@ -98,9 +92,43 @@ contract AuctionRebalanceIssuanceModule is ModuleBase, ReentrancyGuard {
         _;
     }
 
+    /* ============ Events ============ */
+    event RebalanceSetuped(address indexed _setToken, uint256 _serialId);
+
+    // If the auction result is successful, the winning tick will have a value
+    event AuctionResultSet(
+        address indexed _setToken,
+        uint256 _serialId,
+        bool _isSuccess,
+        int24 _winTick
+    );
+
+    event Bid(
+        address indexed _setToken,
+        address indexed _account,
+        uint256 _serialId,
+        int24 _tick,
+        int256 _virtualAmount
+    );
+    event CancelBid(
+        address indexed _setToken,
+        address indexed _account,
+        uint256 _serialId,
+        int24 _tick,
+        int256 _virtualAmount
+    );
+    event Claim(
+        address indexed _setToken,
+        address indexed _account,
+        uint256 _serialId,
+        int24 _tick
+    );
+    /* ============ Constructor ============ */
     constructor(IController _controller) public ModuleBase(_controller) {
-        VirtualBaseAmount = PreciseUnitMath.preciseUnitInt();
+        VIRTUAL_BASE_AMOUNT = PreciseUnitMath.preciseUnitInt();
     }
+
+    /* ============ External Functions ============ */
 
     function setupRebalance(
         ISetToken _setToken,
@@ -122,15 +150,16 @@ contract AuctionRebalanceIssuanceModule is ModuleBase, ReentrancyGuard {
         );
         require(_priceSpacing > 0, "Price spcacing must be bigger than 0");
         require(_setToken.isLocked(), "Sets should be locked");
-        uint256 id = serialIds[_setToken];
+        uint256 serialId = serialIds[_setToken];
         require(
-            rebalanceInfos[_setToken][id].status != RebalanceStatus.PROGRESSING,
+            rebalanceInfos[_setToken][serialId].status !=
+                RebalanceStatus.PROGRESSING,
             "Latest bid is progressing"
         );
+        serialId = serialId.add(1);
+        serialIds[_setToken] = serialId;
 
-        serialIds[_setToken] = id.add(1);
-
-        RebalanceInfo storage info = rebalanceInfos[_setToken][id];
+        RebalanceInfo storage info = rebalanceInfos[_setToken][serialId];
         info.status = RebalanceStatus.PROGRESSING;
         info.positionMultiplier = _setToken.positionMultiplier();
         info.rebalanceStartTime = _rebalanceStartTime;
@@ -141,17 +170,153 @@ contract AuctionRebalanceIssuanceModule is ModuleBase, ReentrancyGuard {
         info.priceSpacing = _priceSpacing;
 
         int256 minBasePrice = _minAmountsSetsRequire.preciseDiv(
-            VirtualBaseAmount
+            VIRTUAL_BASE_AMOUNT
         );
         info._minBasePrice = minBasePrice;
+        emit RebalanceSetuped(address(_setToken), serialId);
     }
-    // ATAINTION !!!
-    // cant choose sets amount as param, calulate amount div target price, but price maybe zero.
+
+    function setAuctionResultFailed(
+        ISetToken _setToken
+    ) external nonReentrant onlyManagerAndValidSet(_setToken) {
+        _excutionBidResult(_setToken, false);
+    }
+
+    function setAuctionResultSuccess(
+        ISetToken _setToken
+    ) external nonReentrant onlyManagerAndValidSet(_setToken) {
+        _excutionBidResult(_setToken, true);
+    }
+
+    function batchBid(
+        ISetToken _setToken,
+        int24[] memory _ticks,
+        int256[] memory _virtualAmounts
+    )
+        external
+        nonReentrant
+        onlyValidAndInitializedSet(_setToken)
+        onlyAllowedBidTime(_setToken)
+    {
+        require(_ticks.length > 0, "Must have at least 1 tick");
+        require(
+            _ticks.length == _virtualAmounts.length,
+            "Ticks and virtualAmounts lengths must be the same"
+        );
+        for (uint256 i = 0; i < _ticks.length; i++) {
+            _bid(_setToken, _ticks[i], _virtualAmounts[i]);
+        }
+    }
+
     function bid(
         ISetToken _setToken,
         int24 _tick,
         int256 _virtualAmount
-    ) external nonReentrant onlyAllowedBidTime(_setToken) {
+    )
+        external
+        nonReentrant
+        onlyValidAndInitializedSet(_setToken)
+        onlyAllowedBidTime(_setToken)
+    {
+        _bid(_setToken, _tick, _virtualAmount);
+    }
+
+    function batchCancelBid(
+        ISetToken _setToken,
+        int24[] memory _ticks
+    )
+        external
+        nonReentrant
+        onlyValidAndInitializedSet(_setToken)
+        onlyAllowedBidTime(_setToken)
+    {
+        require(_ticks.length > 0, "Must have at least 1 tick");
+        for (uint256 i = 0; i < _ticks.length; i++) {
+            _cancelBid(_setToken, _ticks[i]);
+        }
+    }
+
+    function cancelBid(
+        ISetToken _setToken,
+        int24 _tick
+    )
+        external
+        nonReentrant
+        onlyValidAndInitializedSet(_setToken)
+        onlyAllowedBidTime(_setToken)
+    {
+        _cancelBid(_setToken, _tick);
+    }
+
+    // There is no check of setToken legitimacy here
+    // The expectation is that you will be able to claim historical transactions even if the module is removed
+    function batchClaim(
+        ISetToken _setToken,
+        uint256[] memory _serialIds,
+        int24[] memory _ticks
+    ) external nonReentrant {
+        require(_serialIds.length > 0, "Must have at least 1 serial id");
+        require(
+            _serialIds.length == _ticks.length,
+            "Ticks and serial ids lengths must be the same"
+        );
+        for (uint256 i = 0; i < _serialIds.length; i++) {
+            _claim(_setToken, _serialIds[i], _ticks[i]);
+        }
+    }
+
+    function claim(
+        ISetToken _setToken,
+        uint256 _serialId,
+        int24 _tick
+    ) external nonReentrant {
+        _claim(_setToken, _serialId, _tick);
+    }
+
+    function lock(
+        ISetToken _setToken
+    ) external onlyManagerAndValidSet(_setToken) {
+        // lock the SetToken
+        _setToken.lock();
+    }
+
+    function unlock(
+        ISetToken _setToken
+    ) external onlyManagerAndValidSet(_setToken) {
+        // Unlock the SetToken
+        _setToken.unlock();
+    }
+
+    /**
+     * @param _setToken   Address of the Set Token
+     */
+    function initialize(
+        ISetToken _setToken
+    )
+        external
+        onlySetManager(_setToken, msg.sender)
+        onlyValidAndPendingSet(_setToken)
+    {
+        _setToken.initializeModule();
+    }
+
+    /**
+     * Called by a SetToken to notify that this module was removed from the SetToken.
+     * Don't delete the data to prevent users who haven't withdrawn from operating properly
+     */
+    function removeModule() external override {}
+
+    /* ============ External View Functions ============ */
+
+    //TODO: Front need get
+
+    /* ============ Internal Functions ============ */
+
+    function _bid(
+        ISetToken _setToken,
+        int24 _tick,
+        int256 _virtualAmount
+    ) internal {
         require(_virtualAmount > 0, "Virtual amount must be positive number");
         require(_tick >= 0, "Tick need be bigger than 0");
         uint256 serialId = serialIds[_setToken];
@@ -183,12 +348,12 @@ contract AuctionRebalanceIssuanceModule is ModuleBase, ReentrancyGuard {
             serialId
         ];
         // make sure this tick 0
-        (, bool initialize) = tickBitmap.nextInitializedTickWithinOneWord(
+        (, bool inited) = tickBitmap.nextInitializedTickWithinOneWord(
             _tick,
             1,
             false
         );
-        if (!initialize) {
+        if (!inited) {
             tickBitmap.flipTick(_tick, 1);
         }
         _updateTotalVirtualAmountsOnTick(
@@ -200,36 +365,54 @@ contract AuctionRebalanceIssuanceModule is ModuleBase, ReentrancyGuard {
         _updateMaxTick(_setToken, serialId, _tick);
     }
 
-    // TODO: maybe not
-    // function cancelBid(
-    //     ISetToken _setToken,
-    //     int24 _tick
-    // ) external nonReentrant onlyAllowedBidTime(_setToken) {
-    //     require(_tick >= 0, "Tick need be bigger than 0");
-    //     uint256 serialId = serialIds[_setToken];
-    //     ValuePosition.Info storage valuePosition = valuePositions[_setToken]
-    //         .get(serialId, msg.sender, _tick);
-    //     // require(condition);
-    // }
+    function _cancelBid(ISetToken _setToken, int24 _tick) internal {
+        require(_tick >= 0, "Tick need be bigger than 0");
+        uint256 serialId = serialIds[_setToken];
+        ValuePosition.Info storage valuePosition = valuePositions[_setToken]
+            .get(serialId, msg.sender, _tick);
+        int256 virtualAmount = valuePosition.virtualAmount;
+        require(virtualAmount > 0, "There is no corresponding asset");
+        RebalanceInfo memory info = rebalanceInfos[_setToken][serialId];
+        int256 setsTokenAmountNeeded = _caculateSetsTokenNeeded(
+            info._minBasePrice,
+            info.priceSpacing,
+            _tick,
+            virtualAmount
+        );
+        _rollbackBidSets(_setToken, msg.sender, setsTokenAmountNeeded);
+        _rollbackBidToken(
+            msg.sender,
+            virtualAmount,
+            info.rebalanceComponents,
+            info.rebalanceAmounts
+        );
+        int256 afterRollback = _updateTotalVirtualAmountsOnTick(
+            _setToken,
+            serialId,
+            _tick,
+            virtualAmount.neg()
+        );
 
-    // function _transferClaimSets(
-    //     ISetToken _setToken,
-    //     address _account,
-    //     int256 _amount
-    // ) internal {}
-    // function _transferClaimToken(
-    //     ISetToken _setToken,
-    //     address _account,
-    //     int256 _virtualAmount,
-    //     address[] calldata _component,
-    //     int256[] calldata _amounts
-    // ) internal {}
+        if (afterRollback == 0) {
+            mapping(int16 => uint256) storage tickBitmap = tickBitmaps[
+                _setToken
+            ][serialId];
+            tickBitmap.flipTick(_tick, 1);
+        }
+        emit CancelBid(
+            address(_setToken),
+            msg.sender,
+            serialId,
+            _tick,
+            virtualAmount
+        );
+    }
 
-    function claim(
+    function _claim(
         ISetToken _setToken,
         uint256 _serialId,
         int24 _tick
-    ) external nonReentrant {
+    ) internal {
         require(_tick >= 0, "Tick need be bigger than 0");
         RebalanceInfo memory info = rebalanceInfos[_setToken][_serialId];
         require(
@@ -242,6 +425,7 @@ contract AuctionRebalanceIssuanceModule is ModuleBase, ReentrancyGuard {
         } else if (info.status == RebalanceStatus.SUCCESSED) {
             _bidSuccessClaimRewards(_setToken, _serialId, msg.sender, _tick);
         }
+        emit Claim(address(_setToken), msg.sender, _serialId, _tick);
     }
 
     function _bidFailedClaimAllAssets(
@@ -286,6 +470,7 @@ contract AuctionRebalanceIssuanceModule is ModuleBase, ReentrancyGuard {
         int256 virtualAmount = valuePosition.virtualAmount;
         require(virtualAmount > 0, "There is no corresponding asset");
         valuePosition.claimed = true;
+
         RebalanceInfo memory info = rebalanceInfos[_setToken][_serialId];
         int256 setsTokenAmountNeeded = _caculateSetsTokenNeeded(
             info._minBasePrice,
@@ -307,7 +492,8 @@ contract AuctionRebalanceIssuanceModule is ModuleBase, ReentrancyGuard {
         } else {
             int256 biddedVirtualAmount = virtualAmount;
             if (
-                info._totalVirtualAmount > VirtualBaseAmount && winTick == _tick
+                info._totalVirtualAmount > VIRTUAL_BASE_AMOUNT &&
+                winTick == _tick
             ) {
                 biddedVirtualAmount = exactTickAboveGetProportion[_setToken][
                     _serialId
@@ -444,18 +630,6 @@ contract AuctionRebalanceIssuanceModule is ModuleBase, ReentrancyGuard {
         }
     }
 
-    function revertBidResult(
-        ISetToken _setToken
-    ) external nonReentrant onlyManagerAndValidSet(_setToken) {
-        _excutionBidResult(_setToken, false);
-    }
-
-    function passBidResult(
-        ISetToken _setToken
-    ) external nonReentrant onlyManagerAndValidSet(_setToken) {
-        _excutionBidResult(_setToken, true);
-    }
-
     function _excutionBidResult(ISetToken _setToken, bool validated) internal {
         uint256 serialId = serialIds[_setToken];
         RebalanceInfo storage info = rebalanceInfos[_setToken][serialId];
@@ -463,6 +637,7 @@ contract AuctionRebalanceIssuanceModule is ModuleBase, ReentrancyGuard {
             info.status == RebalanceStatus.PROGRESSING,
             "Bid's status must be progressing"
         );
+        int24 winTickRecord;
         if (validated) {
             require(
                 info.rebalanceStartTime + info.rebalanceDuration <
@@ -474,11 +649,11 @@ contract AuctionRebalanceIssuanceModule is ModuleBase, ReentrancyGuard {
                 int256 totalVirtualAmount,
                 int256 lastTickVirtualAmount
             ) = _searchWinningBidTick(_setToken, serialId);
-            winningBidTick[_setToken][serialId] = winTick;
 
-            if (totalVirtualAmount > VirtualBaseAmount) {
+            winTickRecord = winTick;
+            if (totalVirtualAmount > VIRTUAL_BASE_AMOUNT) {
                 int256 overBidVirtualAmount = totalVirtualAmount.sub(
-                    VirtualBaseAmount
+                    VIRTUAL_BASE_AMOUNT
                 );
                 exactTickAboveGetProportion[_setToken][
                     serialId
@@ -488,10 +663,10 @@ contract AuctionRebalanceIssuanceModule is ModuleBase, ReentrancyGuard {
             }
             info._totalVirtualAmount = totalVirtualAmount;
             info.status = RebalanceStatus.SUCCESSED;
-
+            winningBidTick[_setToken][serialId] = winTick;
             // for caculate
-            if (totalVirtualAmount > VirtualBaseAmount) {
-                totalVirtualAmount = VirtualBaseAmount;
+            if (totalVirtualAmount > VIRTUAL_BASE_AMOUNT) {
+                totalVirtualAmount = VIRTUAL_BASE_AMOUNT;
             }
 
             int256 ultimatelyConsumedSets = _caculateSetsTokenNeeded(
@@ -512,6 +687,12 @@ contract AuctionRebalanceIssuanceModule is ModuleBase, ReentrancyGuard {
             info.status = RebalanceStatus.FAILURED;
             // Do nothing
         }
+        emit AuctionResultSet(
+            address(_setToken),
+            serialId,
+            validated,
+            winTickRecord
+        );
     }
 
     function _disposeSetToken(ISetToken _setToken, int256 _amount) internal {
@@ -542,22 +723,22 @@ contract AuctionRebalanceIssuanceModule is ModuleBase, ReentrancyGuard {
         ];
         totalVirtualAmount = 0;
         winTick = maxTick;
-        // if tick < 0, bid not full the pool. if tick >=0 and totalVirtualAmount >= VirtualBaseAmount, bid success.
+        // if tick < 0, bid not full the pool. if tick >=0 and totalVirtualAmount >= VIRTUAL_BASE_AMOUNT, bid success.
         while (true) {
-            (int24 next, bool initialize) = tickBitmap
+            (int24 next, bool inited) = tickBitmap
                 .nextInitializedTickWithinOneWord(winTick, 1, true);
             // Went through all the ticks and didn't get full
             if (next < 0) {
                 winTick = 0;
                 break;
             }
-            if (initialize) {
+            if (inited) {
                 lastTickVirtualAmount = virtualAmountsOnTicks[_setToken][
                     _serialId
                 ][winTick];
                 totalVirtualAmount += lastTickVirtualAmount; // if user cancel bid, virtual amount maybe zero.
                 // bid full
-                if (totalVirtualAmount >= VirtualBaseAmount) {
+                if (totalVirtualAmount >= VIRTUAL_BASE_AMOUNT) {
                     break;
                 }
             }
@@ -598,22 +779,14 @@ contract AuctionRebalanceIssuanceModule is ModuleBase, ReentrancyGuard {
                 preTokenBalance
             );
         }
-        // The two steps can be operated together
-        // All component rebalance, because of sets changed
+
         _disposeSetToken(_setToken, _setsAmount);
         uint256 currentSetTotalSupply = _setToken.totalSupply();
-        address[] memory currentComponents = _setToken.getComponents();
-        for (uint256 i = 0; i < currentComponents.length; i++) {
-            address component = currentComponents[i];
-            uint256 tokenBalance = IERC20(component).balanceOf(
-                address(_setToken)
-            );
-            _setToken.calculateAndEditDefaultPosition(
-                component,
-                currentSetTotalSupply,
-                tokenBalance
-            );
-        }
+        int256 newPositionMultiplier = _setToken
+            .positionMultiplier()
+            .mul(preSetTotalSupply.toInt256())
+            .div(currentSetTotalSupply.toInt256());
+        _setToken.editPositionMultiplier(newPositionMultiplier);
     }
 
     function _updateTotalVirtualAmountsOnTick(
@@ -638,7 +811,7 @@ contract AuctionRebalanceIssuanceModule is ModuleBase, ReentrancyGuard {
         int24 _tick,
         int256 _virtualAmount
     ) internal pure returns (int256) {
-        int256 targetPrice = _caculateTargetPriceWithTickAndVirtualAmount(
+        int256 targetPrice = _caculateTargetPriceWithTick(
             _minBasePrice,
             _priceSpacing,
             _tick
@@ -646,7 +819,7 @@ contract AuctionRebalanceIssuanceModule is ModuleBase, ReentrancyGuard {
         return _virtualAmount.preciseMul(targetPrice);
     }
 
-    function _caculateTargetPriceWithTickAndVirtualAmount(
+    function _caculateTargetPriceWithTick(
         int256 _minBasePrice,
         int256 _priceSpacing,
         int24 _tick
@@ -665,32 +838,7 @@ contract AuctionRebalanceIssuanceModule is ModuleBase, ReentrancyGuard {
         }
     }
 
-    function lock(
-        ISetToken _setToken
-    ) external onlyManagerAndValidSet(_setToken) {
-        // lock the SetToken
-        _setToken.lock();
-    }
-
-    function unlock(
-        ISetToken _setToken
-    ) external onlyManagerAndValidSet(_setToken) {
-        // Unlock the SetToken
-        _setToken.unlock();
-    }
-
-    /**
-     * @param _setToken   Address of the Set Token
-     */
-    function initialize(
-        ISetToken _setToken
-    )
-        external
-        onlySetManager(_setToken, msg.sender)
-        onlyValidAndPendingSet(_setToken)
-    {
-        _setToken.initializeModule();
-    }
+    /* ============== Modifier Helpers =============== */
 
     function _validateOnlyAllowedBidTimeOrStatus(
         ISetToken _setToken
@@ -707,13 +855,5 @@ contract AuctionRebalanceIssuanceModule is ModuleBase, ReentrancyGuard {
                 block.timestamp,
             "Not bidding time"
         );
-    }
-
-    /**
-     * Reverts as this module should not be removable after added. Users should always
-     * have a way to claim their Sets or Tokens.
-     */
-    function removeModule() external override {
-        revert("The AuctionRebanalceIssuanceModule module cannot be removed");
     }
 }
