@@ -191,7 +191,7 @@ contract AuctionRebalanceIssuanceModule is ModuleBase, ReentrancyGuard {
     }
 
     /**
-     * @notice  .
+     * @notice  The auction failed.
      * @dev     .
      * @param   _setToken  The target sets contract address of the operation..
      */
@@ -202,7 +202,7 @@ contract AuctionRebalanceIssuanceModule is ModuleBase, ReentrancyGuard {
     }
 
     /**
-     * @notice  .
+     * @notice  Confirm the success of the auction after the auction is closed.
      * @dev     .
      * @param   _setToken  The target sets contract address of the operation..
      */
@@ -213,7 +213,7 @@ contract AuctionRebalanceIssuanceModule is ModuleBase, ReentrancyGuard {
     }
 
     /**
-     * @notice  .
+     * @notice  Auctions are conducted in bulk.
      * @dev     .
      * @param   _setToken  The target sets contract address of the operation..
      * @param   _ticks  The minimum price is used as the criterion to interval the number of spaces.
@@ -240,7 +240,7 @@ contract AuctionRebalanceIssuanceModule is ModuleBase, ReentrancyGuard {
     }
 
     /**
-     * @notice  .
+     * @notice  The user participates in the operation of the auction during the auction phase.
      * @dev     .
      * @param   _setToken  The target sets contract address of the operation..
      * @param   _tick  The minimum price is used as the criterion to interval the number of spaces.
@@ -260,7 +260,7 @@ contract AuctionRebalanceIssuanceModule is ModuleBase, ReentrancyGuard {
     }
 
     /**
-     * @notice  .
+     * @notice  Cancel in bulk.
      * @dev     .
      * @param   _setToken  The target sets contract address of the operation..
      * @param   _ticks  The minimum price is used as the criterion to interval the number of spaces.
@@ -281,7 +281,7 @@ contract AuctionRebalanceIssuanceModule is ModuleBase, ReentrancyGuard {
     }
 
     /**
-     * @notice  .
+     * @notice  While the auction is in progress, the user can choose to cancel the auction and return the mortgage for the auction.
      * @dev     .
      * @param   _setToken  The target sets contract address of the operation..
      * @param   _tick  The minimum price is used as the criterion to interval the number of spaces.
@@ -301,7 +301,7 @@ contract AuctionRebalanceIssuanceModule is ModuleBase, ReentrancyGuard {
     // There is no check of setToken legitimacy here
     // The expectation is that you will be able to claim historical transactions even if the module is removed
     /**
-     * @notice  .
+     * @notice  Perform claim operations in batches.
      * @dev     .
      * @param   _setToken  The target sets contract address of the operation..
      * @param   _serialIds  The serial number of the auction, in increments.
@@ -323,7 +323,7 @@ contract AuctionRebalanceIssuanceModule is ModuleBase, ReentrancyGuard {
     }
 
     /**
-     * @notice  .
+     * @notice  Collect the auction results, and return the auction if the auction does not win the bid or the auction fails.
      * @dev     .
      * @param   _setToken  The target sets contract address of the operation..
      * @param   _serialId  The serial number of the auction, in increments.
@@ -338,7 +338,7 @@ contract AuctionRebalanceIssuanceModule is ModuleBase, ReentrancyGuard {
     }
 
     /**
-     * @notice  .
+     * @notice  If you want to start the auction, you need to lock the sets in advance, and unlock them when the auction ends, which needs to be operated by the manager.
      * @dev     .
      * @param   _setToken  The target sets contract address of the operation..
      */
@@ -350,7 +350,7 @@ contract AuctionRebalanceIssuanceModule is ModuleBase, ReentrancyGuard {
     }
 
     /**
-     * @notice  .
+     * @notice  If you want to start the auction, you need to lock the sets in advance, and unlock them when the auction ends, which needs to be operated by the manager.
      * @dev     .
      * @param   _setToken  The target sets contract address of the operation..
      */
@@ -362,7 +362,7 @@ contract AuctionRebalanceIssuanceModule is ModuleBase, ReentrancyGuard {
     }
 
     /**
-     * @notice  .
+     * @notice  Initialize the module.
      * @dev     .
      * @param   _setToken  The target sets contract address of the operation..
      */
@@ -385,7 +385,7 @@ contract AuctionRebalanceIssuanceModule is ModuleBase, ReentrancyGuard {
     /* ============ External View Functions ============ */
 
     /**
-     * @notice  .
+     * @notice  Get the number of sets or rewards based on the virtual quantity of the target.
      * @dev     .
      * @param   _setToken  The target sets contract address of the operation..
      * @param   _serialId  The serial number of the auction, in increments.
@@ -414,7 +414,7 @@ contract AuctionRebalanceIssuanceModule is ModuleBase, ReentrancyGuard {
     }
 
     /**
-     * @notice  .
+     * @notice  Get the actual number of auction tokens based on the target virtual quantity.
      * @dev     .
      * @param   _setToken  The target sets contract address of the operation..
      * @param   _serialId  The serial number of the auction, in increments.
@@ -448,11 +448,11 @@ contract AuctionRebalanceIssuanceModule is ModuleBase, ReentrancyGuard {
     }
 
     /**
-     * @notice  .
+     * @notice  Get the tick that won the bid.
      * @dev     .
      * @param   _setToken  The target sets contract address of the operation..
-     * @param   _serialId  .
-     * @return  winTick  .
+     * @param   _serialId  The serial number of the auction, in increments.
+     * @return  winTick  Winning bid tick.
      */
     function getFinalWinningTick(
         ISetToken _setToken,
@@ -462,7 +462,7 @@ contract AuctionRebalanceIssuanceModule is ModuleBase, ReentrancyGuard {
     }
 
     /**
-     * @notice  .
+     * @notice  Dynamically calculates the tick that wins the bid in real time.
      * @dev     .
      * @param   _setToken  The target sets contract address of the operation..
      * @param   _serialId  The serial number of the auction, in increments.
@@ -490,7 +490,7 @@ contract AuctionRebalanceIssuanceModule is ModuleBase, ReentrancyGuard {
     }
 
     /**
-     * @notice  .
+     * @notice  Get the total number of bids a user has made on a tick.
      * @dev     .
      * @param   _setToken  The target sets contract address of the operation..
      * @param   _serialId  The serial number of the auction, in increments.
@@ -498,7 +498,7 @@ contract AuctionRebalanceIssuanceModule is ModuleBase, ReentrancyGuard {
      * @param   _tick  The minimum price is used as the criterion to interval the number of spaces.
      * @return  int256  Returns the total amount the user invested on a tick.
      */
-    function getAccountTotalVirtualAmountO n Ti c k(
+    function getAccountTotalVirtualAmountOnTick(
         ISetToken _setToken,
         uint256 _serialId,
         address _account,
@@ -514,7 +514,7 @@ contract AuctionRebalanceIssuanceModule is ModuleBase, ReentrancyGuard {
     }
 
     /**
-     * @notice  .
+     * @notice  Get the proportion of users who actually win bids.
      * @dev     .
      * @param   _setToken  The target sets contract address of the operation..
      * @param   _serialId  The serial number of the auction, in increments.
