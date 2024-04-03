@@ -123,6 +123,7 @@ contract AuctionRebalanceIssuanceModule is ModuleBase, ReentrancyGuard {
         uint256 _serialId,
         int24 _tick
     );
+
     /* ============ Constructor ============ */
     constructor(IController _controller) public ModuleBase(_controller) {
         VIRTUAL_BASE_AMOUNT = PreciseUnitMath.preciseUnitInt();
