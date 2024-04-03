@@ -130,6 +130,19 @@ contract AuctionRebalanceIssuanceModule is ModuleBase, ReentrancyGuard {
 
     /* ============ External Functions ============ */
 
+    /**
+     * @notice  The manager initiates the auction.
+     * @dev     .
+     * @param   _setToken  The target sets contract address of the operation.
+     * @param   _rebalanceComponents  The token address that needs to be auctioned.
+     * @param   _rebalanceAmounts  The number of auctions, the positive number is for the tokens sold, and the negative number is the revenue tokens.
+     * @param   _rebalanceStartTime  The time when the auction started.
+     * @param   _rebalanceDuration  Auction duration, in seconds.
+     * @param   _minAmountsSetsRequire  The minimum number of sets expected to be received.
+     * @param   _minBidAmount  The minimum number of sets required at a time.
+     * @param   _priceSpacing  Price Minimum Interval.
+     */
+
     function setupRebalance(
         ISetToken _setToken,
         address[] memory _rebalanceComponents,
@@ -177,18 +190,35 @@ contract AuctionRebalanceIssuanceModule is ModuleBase, ReentrancyGuard {
         emit RebalanceSetuped(address(_setToken), serialId);
     }
 
+    /**
+     * @notice  .
+     * @dev     .
+     * @param   _setToken  The target sets contract address of the operation..
+     */
     function setAuctionResultFailed(
         ISetToken _setToken
     ) external nonReentrant onlyManagerAndValidSet(_setToken) {
         _excutionBidResult(_setToken, false);
     }
 
+    /**
+     * @notice  .
+     * @dev     .
+     * @param   _setToken  The target sets contract address of the operation..
+     */
     function setAuctionResultSuccess(
         ISetToken _setToken
     ) external nonReentrant onlyManagerAndValidSet(_setToken) {
         _excutionBidResult(_setToken, true);
     }
 
+    /**
+     * @notice  .
+     * @dev     .
+     * @param   _setToken  The target sets contract address of the operation..
+     * @param   _ticks  The minimum price is used as the criterion to interval the number of spaces.
+     * @param   _virtualAmounts  The number of auctions can be taken as a percentage.
+     */
     function batchBid(
         ISetToken _setToken,
         int24[] memory _ticks,
@@ -209,6 +239,13 @@ contract AuctionRebalanceIssuanceModule is ModuleBase, ReentrancyGuard {
         }
     }
 
+    /**
+     * @notice  .
+     * @dev     .
+     * @param   _setToken  The target sets contract address of the operation..
+     * @param   _tick  The minimum price is used as the criterion to interval the number of spaces.
+     * @param   _virtualAmount  The number of auctions can be taken as a percentage.
+     */
     function bid(
         ISetToken _setToken,
         int24 _tick,
@@ -222,6 +259,12 @@ contract AuctionRebalanceIssuanceModule is ModuleBase, ReentrancyGuard {
         _bid(_setToken, _tick, _virtualAmount);
     }
 
+    /**
+     * @notice  .
+     * @dev     .
+     * @param   _setToken  The target sets contract address of the operation..
+     * @param   _ticks  The minimum price is used as the criterion to interval the number of spaces.
+     */
     function batchCancelBid(
         ISetToken _setToken,
         int24[] memory _ticks
@@ -237,6 +280,12 @@ contract AuctionRebalanceIssuanceModule is ModuleBase, ReentrancyGuard {
         }
     }
 
+    /**
+     * @notice  .
+     * @dev     .
+     * @param   _setToken  The target sets contract address of the operation..
+     * @param   _tick  The minimum price is used as the criterion to interval the number of spaces.
+     */
     function cancelBid(
         ISetToken _setToken,
         int24 _tick
@@ -251,6 +300,13 @@ contract AuctionRebalanceIssuanceModule is ModuleBase, ReentrancyGuard {
 
     // There is no check of setToken legitimacy here
     // The expectation is that you will be able to claim historical transactions even if the module is removed
+    /**
+     * @notice  .
+     * @dev     .
+     * @param   _setToken  The target sets contract address of the operation..
+     * @param   _serialIds  The serial number of the auction, in increments.
+     * @param   _ticks  The minimum price is used as the criterion to interval the number of spaces.
+     */
     function batchClaim(
         ISetToken _setToken,
         uint256[] memory _serialIds,
@@ -266,6 +322,13 @@ contract AuctionRebalanceIssuanceModule is ModuleBase, ReentrancyGuard {
         }
     }
 
+    /**
+     * @notice  .
+     * @dev     .
+     * @param   _setToken  The target sets contract address of the operation..
+     * @param   _serialId  The serial number of the auction, in increments.
+     * @param   _tick  The minimum price is used as the criterion to interval the number of spaces.
+     */
     function claim(
         ISetToken _setToken,
         uint256 _serialId,
@@ -274,6 +337,11 @@ contract AuctionRebalanceIssuanceModule is ModuleBase, ReentrancyGuard {
         _claim(_setToken, _serialId, _tick);
     }
 
+    /**
+     * @notice  .
+     * @dev     .
+     * @param   _setToken  The target sets contract address of the operation..
+     */
     function lock(
         ISetToken _setToken
     ) external onlyManagerAndValidSet(_setToken) {
@@ -281,6 +349,11 @@ contract AuctionRebalanceIssuanceModule is ModuleBase, ReentrancyGuard {
         _setToken.lock();
     }
 
+    /**
+     * @notice  .
+     * @dev     .
+     * @param   _setToken  The target sets contract address of the operation..
+     */
     function unlock(
         ISetToken _setToken
     ) external onlyManagerAndValidSet(_setToken) {
@@ -288,6 +361,11 @@ contract AuctionRebalanceIssuanceModule is ModuleBase, ReentrancyGuard {
         _setToken.unlock();
     }
 
+    /**
+     * @notice  .
+     * @dev     .
+     * @param   _setToken  The target sets contract address of the operation..
+     */
     function initialize(
         ISetToken _setToken
     )
@@ -298,11 +376,24 @@ contract AuctionRebalanceIssuanceModule is ModuleBase, ReentrancyGuard {
         _setToken.initializeModule();
     }
 
+    /**
+     * @notice  .
+     * @dev     .
+     */
     function removeModule() external override {}
 
     /* ============ External View Functions ============ */
 
-    function getRequiredOrRewardsSetsAmountsAtTickForBid(
+    /**
+     * @notice  .
+     * @dev     .
+     * @param   _setToken  The target sets contract address of the operation..
+     * @param   _serialId  The serial number of the auction, in increments.
+     * @param   _tick  The minimum price is used as the criterion to interval the number of spaces.
+     * @param   _virtualAmount  The fictitious amount is a proportion, convenient to calculate, and the base is a standard unit.
+     * @return  amount  If the amount is positive, it needs to be transferred, and if it is negative, it is the amount of rewards.
+     */
+    function getRequiredOrRewardsSetsAmountsOnTickForBid(
         ISetToken _setToken,
         uint256 _serialId,
         int24 _tick,
@@ -311,7 +402,7 @@ contract AuctionRebalanceIssuanceModule is ModuleBase, ReentrancyGuard {
         require(_virtualAmount > 0, "Virtual amount must be positive number");
         require(_tick >= 0, "Tick need be bigger than 0");
         RebalanceInfo memory info = rebalanceInfos[_setToken][_serialId];
-        amount = _caculateRequiredOrRewardsSetsAmountsAtTickForBid(
+        amount = _caculateRequiredOrRewardsSetsAmountsOnTickForBid(
             info._minBasePrice,
             info.priceSpacing,
             _tick,
@@ -322,7 +413,16 @@ contract AuctionRebalanceIssuanceModule is ModuleBase, ReentrancyGuard {
         }
     }
 
-    function getRequiredOrRewardComponentsAndAmountsAtTickForBid(
+    /**
+     * @notice  .
+     * @dev     .
+     * @param   _setToken  The target sets contract address of the operation..
+     * @param   _serialId  The serial number of the auction, in increments.
+     * @param   _virtualAmount  The fictitious amount is a proportion, convenient to calculate, and the base is a standard unit.
+     * @return  components  List of addresses of components for tranfer or send.
+     * @return  amounts  If the amount is positive, contract send to user, and if it is negative, user send to contract.
+     */
+    function getRequiredOrRewardComponentsAndAmountsOnTickForBid(
         ISetToken _setToken,
         uint256 _serialId,
         int256 _virtualAmount
@@ -347,6 +447,13 @@ contract AuctionRebalanceIssuanceModule is ModuleBase, ReentrancyGuard {
         }
     }
 
+    /**
+     * @notice  .
+     * @dev     .
+     * @param   _setToken  The target sets contract address of the operation..
+     * @param   _serialId  .
+     * @return  winTick  .
+     */
     function getFinalWinningTick(
         ISetToken _setToken,
         uint256 _serialId
@@ -354,6 +461,15 @@ contract AuctionRebalanceIssuanceModule is ModuleBase, ReentrancyGuard {
         winTick = winningBidTick[_setToken][_serialId];
     }
 
+    /**
+     * @notice  .
+     * @dev     .
+     * @param   _setToken  The target sets contract address of the operation..
+     * @param   _serialId  The serial number of the auction, in increments.
+     * @return  winTick  .
+     * @return  totalVirtualAmount  .
+     * @return  lastTickVirtualAmount  .
+     */
     function getPreCalculatedWinningTick(
         ISetToken _setToken,
         uint256 _serialId
@@ -373,14 +489,23 @@ contract AuctionRebalanceIssuanceModule is ModuleBase, ReentrancyGuard {
         ) = _searchWinningBidTick(_setToken, _serialId);
     }
 
-    function getAccountTotalVirtualAmountAtTick(
+    /**
+     * @notice  .
+     * @dev     .
+     * @param   _setToken  The target sets contract address of the operation..
+     * @param   _serialId  The serial number of the auction, in increments.
+     * @param   _account  Bidder account address.
+     * @param   _tick  The minimum price is used as the criterion to interval the number of spaces.
+     * @return  int256  Returns the total amount the user invested on a tick.
+     */
+    function getAccountTotalVirtualAmountO n Ti c k(
         ISetToken _setToken,
         uint256 _serialId,
         address _account,
         int24 _tick
     ) external view returns (int256) {
         return
-            _getAccountVirtualAmountAtTick(
+            _getAccountVirtualAmountOnTick(
                 _setToken,
                 _serialId,
                 _account,
@@ -388,6 +513,15 @@ contract AuctionRebalanceIssuanceModule is ModuleBase, ReentrancyGuard {
             );
     }
 
+    /**
+     * @notice  .
+     * @dev     .
+     * @param   _setToken  The target sets contract address of the operation..
+     * @param   _serialId  The serial number of the auction, in increments.
+     * @param   _account  Bidder account address.
+     * @param   _tick  The minimum price is used as the criterion to interval the number of spaces.
+     * @return  int256  Returns the number of virtual bids won by actual users.
+     */
     function getActualBiddedVirtualAmount(
         ISetToken _setToken,
         uint256 _serialId,
@@ -412,7 +546,7 @@ contract AuctionRebalanceIssuanceModule is ModuleBase, ReentrancyGuard {
         if (_tick < winTick) {
             return 0;
         }
-        int256 accountVirtualAmount = _getAccountVirtualAmountAtTick(
+        int256 accountVirtualAmount = _getAccountVirtualAmountOnTick(
             _setToken,
             _serialId,
             _account,
@@ -432,7 +566,7 @@ contract AuctionRebalanceIssuanceModule is ModuleBase, ReentrancyGuard {
         require(_tick >= 0, "Tick need be bigger than 0");
         uint256 serialId = serialIds[_setToken];
         RebalanceInfo storage info = rebalanceInfos[_setToken][serialId];
-        int256 setsTokenAmountNeeded = _caculateRequiredOrRewardsSetsAmountsAtTickForBid(
+        int256 setsTokenAmountNeeded = _caculateRequiredOrRewardsSetsAmountsOnTickForBid(
                 info._minBasePrice,
                 info.priceSpacing,
                 _tick,
@@ -485,7 +619,7 @@ contract AuctionRebalanceIssuanceModule is ModuleBase, ReentrancyGuard {
         _valuePosition.sub(virtualAmount);
         require(virtualAmount > 0, "There is no corresponding asset");
         RebalanceInfo memory info = rebalanceInfos[_setToken][serialId];
-        int256 setsTokenAmountNeeded = _caculateRequiredOrRewardsSetsAmountsAtTickForBid(
+        int256 setsTokenAmountNeeded = _caculateRequiredOrRewardsSetsAmountsOnTickForBid(
                 info._minBasePrice,
                 info.priceSpacing,
                 _tick,
@@ -556,7 +690,7 @@ contract AuctionRebalanceIssuanceModule is ModuleBase, ReentrancyGuard {
         _valuePosition.claimed = true;
 
         RebalanceInfo memory info = rebalanceInfos[_setToken][_serialId];
-        int256 setsTokenAmountNeeded = _caculateRequiredOrRewardsSetsAmountsAtTickForBid(
+        int256 setsTokenAmountNeeded = _caculateRequiredOrRewardsSetsAmountsOnTickForBid(
                 info._minBasePrice,
                 info.priceSpacing,
                 _tick,
@@ -585,7 +719,7 @@ contract AuctionRebalanceIssuanceModule is ModuleBase, ReentrancyGuard {
         _valuePosition.claimed = true;
 
         RebalanceInfo memory info = rebalanceInfos[_setToken][_serialId];
-        int256 setsTokenAmountNeeded = _caculateRequiredOrRewardsSetsAmountsAtTickForBid(
+        int256 setsTokenAmountNeeded = _caculateRequiredOrRewardsSetsAmountsOnTickForBid(
                 info._minBasePrice,
                 info.priceSpacing,
                 _tick,
@@ -612,7 +746,7 @@ contract AuctionRebalanceIssuanceModule is ModuleBase, ReentrancyGuard {
                     _serialId
                 ].preciseMul(virtualAmount);
             }
-            int256 ultimatelyConsumedSets = _caculateRequiredOrRewardsSetsAmountsAtTickForBid(
+            int256 ultimatelyConsumedSets = _caculateRequiredOrRewardsSetsAmountsOnTickForBid(
                     info._minBasePrice,
                     info.priceSpacing,
                     winTick,
@@ -782,7 +916,7 @@ contract AuctionRebalanceIssuanceModule is ModuleBase, ReentrancyGuard {
                 totalVirtualAmount = VIRTUAL_BASE_AMOUNT;
             }
 
-            int256 ultimatelyConsumedSets = _caculateRequiredOrRewardsSetsAmountsAtTickForBid(
+            int256 ultimatelyConsumedSets = _caculateRequiredOrRewardsSetsAmountsOnTickForBid(
                     info._minBasePrice,
                     info.priceSpacing,
                     winTick,
@@ -918,7 +1052,7 @@ contract AuctionRebalanceIssuanceModule is ModuleBase, ReentrancyGuard {
         ] = totalVirtualAmountAfter;
     }
 
-    function _getAccountVirtualAmountAtTick(
+    function _getAccountVirtualAmountOnTick(
         ISetToken _setToken,
         uint256 _serialId,
         address _account,
@@ -929,7 +1063,7 @@ contract AuctionRebalanceIssuanceModule is ModuleBase, ReentrancyGuard {
         return _valuePosition.virtualAmount;
     }
 
-    function _caculateRequiredOrRewardsSetsAmountsAtTickForBid(
+    function _caculateRequiredOrRewardsSetsAmountsOnTickForBid(
         int256 _minBasePrice,
         int256 _priceSpacing,
         int24 _tick,
