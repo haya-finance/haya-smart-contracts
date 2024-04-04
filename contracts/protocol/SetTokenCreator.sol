@@ -1,27 +1,11 @@
-/*
-    Copyright 2020 Set Labs Inc.
-
-    Licensed under the Apache License, Version 2.0 (the "License");
-    you may not use this file except in compliance with the License.
-    You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-    Unless required by applicable law or agreed to in writing, software
-    distributed under the License is distributed on an "AS IS" BASIS,
-    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-    See the License for the specific language governing permissions and
-    limitations under the License.
-
-    SPDX-License-Identifier: Apache License, Version 2.0
-*/
+// SPDX-License-Identifier: MIT
 
 pragma solidity 0.6.10;
 pragma experimental "ABIEncoderV2";
 
-import { IController } from "../interfaces/IController.sol";
-import { SetToken } from "./SetToken.sol";
-import { AddressArrayUtils } from "../lib/AddressArrayUtils.sol";
+import {IController} from "../interfaces/IController.sol";
+import {SetToken} from "./SetToken.sol";
+import {AddressArrayUtils} from "../lib/AddressArrayUtils.sol";
 
 /**
  * @title SetTokenCreator
@@ -35,7 +19,12 @@ contract SetTokenCreator {
 
     /* ============ Events ============ */
 
-    event SetTokenCreated(address indexed _setToken, address _manager, string _name, string _symbol);
+    event SetTokenCreated(
+        address indexed _setToken,
+        address _manager,
+        string _name,
+        string _symbol
+    );
 
     /* ============ State Variables ============ */
 
@@ -70,18 +59,24 @@ contract SetTokenCreator {
         address _manager,
         string memory _name,
         string memory _symbol
-    )
-        external
-        returns (address)
-    {
+    ) external returns (address) {
         require(_components.length > 0, "Must have at least 1 component");
-        require(_components.length == _units.length, "Component and unit lengths must be the same");
-        require(!_components.hasDuplicate(), "Components must not have a duplicate");
+        require(
+            _components.length == _units.length,
+            "Component and unit lengths must be the same"
+        );
+        require(
+            !_components.hasDuplicate(),
+            "Components must not have a duplicate"
+        );
         require(_modules.length > 0, "Must have at least 1 module");
         require(_manager != address(0), "Manager must not be empty");
 
         for (uint256 i = 0; i < _components.length; i++) {
-            require(_components[i] != address(0), "Component must not be null address");
+            require(
+                _components[i] != address(0),
+                "Component must not be null address"
+            );
             require(_units[i] > 0, "Units must be greater than 0");
         }
 
@@ -108,4 +103,3 @@ contract SetTokenCreator {
         return address(setToken);
     }
 }
-

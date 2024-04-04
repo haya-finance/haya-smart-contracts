@@ -1,27 +1,10 @@
-/*
-    Copyright 2020 Set Labs Inc.
-
-    Licensed under the Apache License, Version 2.0 (the "License");
-    you may not use this file except in compliance with the License.
-    You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-    Unless required by applicable law or agreed to in writing, software
-    distributed under the License is distributed on an "AS IS" BASIS,
-    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-    See the License for the specific language governing permissions and
-    limitations under the License.
-
-    SPDX-License-Identifier: Apache License, Version 2.0
-*/
+// SPDX-License-Identifier: MIT
 
 pragma solidity 0.6.10;
 
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
-import { AddressArrayUtils } from "../lib/AddressArrayUtils.sol";
-
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {AddressArrayUtils} from "../lib/AddressArrayUtils.sol";
 
 /**
  * @title Controller
@@ -37,7 +20,11 @@ contract Controller is Ownable {
 
     event FactoryAdded(address indexed _factory);
     event FactoryRemoved(address indexed _factory);
-    event FeeEdited(address indexed _module, uint256 indexed _feeType, uint256 _feePercentage);
+    event FeeEdited(
+        address indexed _module,
+        uint256 indexed _feeType,
+        uint256 _feePercentage
+    );
     event FeeRecipientChanged(address _newFeeRecipient);
     event ModuleAdded(address indexed _module);
     event ModuleRemoved(address indexed _module);
@@ -120,12 +107,12 @@ contract Controller is Ownable {
         address[] memory _modules,
         address[] memory _resources,
         uint256[] memory _resourceIds
-    )
-        external
-        onlyOwner
-    {
+    ) external onlyOwner {
         require(!isInitialized, "Controller is already initialized");
-        require(_resources.length == _resourceIds.length, "Array lengths do not match.");
+        require(
+            _resources.length == _resourceIds.length,
+            "Array lengths do not match."
+        );
 
         factories = _factories;
         modules = _modules;
@@ -143,7 +130,10 @@ contract Controller is Ownable {
 
         for (uint256 i = 0; i < _resources.length; i++) {
             require(_resources[i] != address(0), "Zero address submitted.");
-            require(resourceId[_resourceIds[i]] == address(0), "Resource ID already exists");
+            require(
+                resourceId[_resourceIds[i]] == address(0),
+                "Resource ID already exists"
+            );
             isResource[_resources[i]] = true;
             resourceId[_resourceIds[i]] = _resources[i];
         }
@@ -202,7 +192,9 @@ contract Controller is Ownable {
      *
      * @param _factory               Address of the factory contract to remove
      */
-    function removeFactory(address _factory) external onlyInitialized onlyOwner {
+    function removeFactory(
+        address _factory
+    ) external onlyInitialized onlyOwner {
         require(isFactory[_factory], "Factory does not exist");
 
         factories = factories.remove(_factory);
@@ -248,7 +240,10 @@ contract Controller is Ownable {
      * @param _resource               Address of the resource contract to add
      * @param _id                     New ID of the resource contract
      */
-    function addResource(address _resource, uint256 _id) external onlyInitialized onlyOwner {
+    function addResource(
+        address _resource,
+        uint256 _id
+    ) external onlyInitialized onlyOwner {
         require(!isResource[_resource], "Resource already exists");
 
         require(resourceId[_id] == address(0), "Resource ID already exists");
@@ -288,10 +283,17 @@ contract Controller is Ownable {
      * @param _feeType              Type of the fee to add in the module
      * @param _newFeePercentage     Percentage of fee to add in the module (denominated in preciseUnits eg 1% = 1e16)
      */
-    function addFee(address _module, uint256 _feeType, uint256 _newFeePercentage) external onlyInitialized onlyOwner {
+    function addFee(
+        address _module,
+        uint256 _feeType,
+        uint256 _newFeePercentage
+    ) external onlyInitialized onlyOwner {
         require(isModule[_module], "Module does not exist");
 
-        require(fees[_module][_feeType] == 0, "Fee type already exists on module");
+        require(
+            fees[_module][_feeType] == 0,
+            "Fee type already exists on module"
+        );
 
         fees[_module][_feeType] = _newFeePercentage;
 
@@ -305,10 +307,17 @@ contract Controller is Ownable {
      * @param _feeType              Type of the fee to edit in the module
      * @param _newFeePercentage     Percentage of fee to edit in the module (denominated in preciseUnits eg 1% = 1e16)
      */
-    function editFee(address _module, uint256 _feeType, uint256 _newFeePercentage) external onlyInitialized onlyOwner {
+    function editFee(
+        address _module,
+        uint256 _feeType,
+        uint256 _newFeePercentage
+    ) external onlyInitialized onlyOwner {
         require(isModule[_module], "Module does not exist");
 
-        require(fees[_module][_feeType] != 0, "Fee type does not exist on module");
+        require(
+            fees[_module][_feeType] != 0,
+            "Fee type does not exist on module"
+        );
 
         fees[_module][_feeType] = _newFeePercentage;
 
@@ -320,7 +329,9 @@ contract Controller is Ownable {
      *
      * @param _newFeeRecipient      Address of the new protocol fee recipient
      */
-    function editFeeRecipient(address _newFeeRecipient) external onlyInitialized onlyOwner {
+    function editFeeRecipient(
+        address _newFeeRecipient
+    ) external onlyInitialized onlyOwner {
         require(_newFeeRecipient != address(0), "Address must not be 0");
 
         feeRecipient = _newFeeRecipient;
@@ -333,11 +344,7 @@ contract Controller is Ownable {
     function getModuleFee(
         address _moduleAddress,
         uint256 _feeType
-    )
-        external
-        view
-        returns (uint256)
-    {
+    ) external view returns (uint256) {
         return fees[_moduleAddress][_feeType];
     }
 
@@ -362,13 +369,13 @@ contract Controller is Ownable {
      *
      * @param  _contractAddress           The contract address to check
      */
-    function isSystemContract(address _contractAddress) external view returns (bool) {
-        return (
-            isSet[_contractAddress] ||
+    function isSystemContract(
+        address _contractAddress
+    ) external view returns (bool) {
+        return (isSet[_contractAddress] ||
             isModule[_contractAddress] ||
             isResource[_contractAddress] ||
             isFactory[_contractAddress] ||
-            _contractAddress == address(this)
-        );
+            _contractAddress == address(this));
     }
 }

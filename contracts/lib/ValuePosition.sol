@@ -1,4 +1,5 @@
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: MIT
+
 pragma solidity 0.6.10;
 
 library ValuePosition {
@@ -36,6 +37,7 @@ library ValuePosition {
         virtualAmountAfter = virtualAmountBefore - virtualAmount;
         self.virtualAmount = virtualAmountAfter;
     }
+
     function setClaimed(Info storage self) internal {
         self.claimed = true;
     }

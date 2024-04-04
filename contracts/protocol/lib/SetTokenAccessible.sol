@@ -1,27 +1,11 @@
-/*
-    Copyright 2021 Set Labs Inc.
-
-    Licensed under the Apache License, Version 2.0 (the "License");
-    you may not use this file except in compliance with the License.
-    You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-    Unless required by applicable law or agreed to in writing, software
-    distributed under the License is distributed on an "AS IS" BASIS,
-    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-    See the License for the specific language governing permissions and
-    limitations under the License.
-
-    SPDX-License-Identifier: Apache License, Version 2.0
-*/
+// SPDX-License-Identifier: MIT
 
 pragma solidity 0.6.10;
 
-import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
-import { IController } from "../../interfaces/IController.sol";
-import { ISetToken } from "../../interfaces/ISetToken.sol";
+import {IController} from "../../interfaces/IController.sol";
+import {ISetToken} from "../../interfaces/ISetToken.sol";
 
 /**
  * @title  SetTokenAccessible
@@ -30,7 +14,6 @@ import { ISetToken } from "../../interfaces/ISetToken.sol";
  * Abstract class that houses permissioning of module for SetTokens.
  */
 abstract contract SetTokenAccessible is Ownable {
-
     /* ============ Events ============ */
 
     /**
@@ -47,9 +30,7 @@ abstract contract SetTokenAccessible is Ownable {
      * @dev Emitted on updateAnySetAllowed()
      * @param _anySetAllowed    true if any set is allowed to initialize this module, false otherwise
      */
-    event AnySetAllowedUpdated(
-        bool indexed _anySetAllowed
-    );
+    event AnySetAllowedUpdated(bool indexed _anySetAllowed);
 
     /* ============ Modifiers ============ */
 
@@ -74,7 +55,6 @@ abstract contract SetTokenAccessible is Ownable {
     // Updateable by governance.
     bool public anySetAllowed;
 
-
     /* ============ Constructor ============ */
 
     /**
@@ -94,8 +74,14 @@ abstract contract SetTokenAccessible is Ownable {
      * @param _setToken             Instance of the SetToken
      * @param _status               Bool indicating if _setToken is allowed to initialize this module
      */
-    function updateAllowedSetToken(ISetToken _setToken, bool _status) public onlyOwner {
-        require(controller.isSet(address(_setToken)) || allowedSetTokens[_setToken], "Invalid SetToken");
+    function updateAllowedSetToken(
+        ISetToken _setToken,
+        bool _status
+    ) public onlyOwner {
+        require(
+            controller.isSet(address(_setToken)) || allowedSetTokens[_setToken],
+            "Invalid SetToken"
+        );
         allowedSetTokens[_setToken] = _status;
         emit SetTokenStatusUpdated(_setToken, _status);
     }

@@ -1,32 +1,15 @@
-/*
-    Copyright 2020 Set Labs Inc.
-
-    Licensed under the Apache License, Version 2.0 (the "License");
-    you may not use this file except in compliance with the License.
-    You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-    Unless required by applicable law or agreed to in writing, software
-    distributed under the License is distributed on an "AS IS" BASIS,
-    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-    See the License for the specific language governing permissions and
-    limitations under the License.
-
-    SPDX-License-Identifier: Apache License, Version 2.0
-*/
+// SPDX-License-Identifier: MIT
 
 pragma solidity 0.6.10;
 pragma experimental "ABIEncoderV2";
 
-import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
-import { AddressArrayUtils } from "../lib/AddressArrayUtils.sol";
-import { IController } from "../interfaces/IController.sol";
-import { IOracle } from "../interfaces/IOracle.sol";
-import { IOracleAdapter } from "../interfaces/IOracleAdapter.sol";
-import { PreciseUnitMath } from "../lib/PreciseUnitMath.sol";
-
+import {AddressArrayUtils} from "../lib/AddressArrayUtils.sol";
+import {IController} from "../interfaces/IController.sol";
+import {IOracle} from "../interfaces/IOracle.sol";
+import {IOracleAdapter} from "../interfaces/IOracleAdapter.sol";
+import {PreciseUnitMath} from "../lib/PreciseUnitMath.sol";
 
 /**
  * @title PriceOracle
@@ -42,9 +25,21 @@ contract PriceOracle is Ownable {
 
     /* ============ Events ============ */
 
-    event PairAdded(address indexed _assetOne, address indexed _assetTwo, address _oracle);
-    event PairRemoved(address indexed _assetOne, address indexed _assetTwo, address _oracle);
-    event PairEdited(address indexed _assetOne, address indexed _assetTwo, address _newOracle);
+    event PairAdded(
+        address indexed _assetOne,
+        address indexed _assetTwo,
+        address _oracle
+    );
+    event PairRemoved(
+        address indexed _assetOne,
+        address indexed _assetTwo,
+        address _oracle
+    );
+    event PairEdited(
+        address indexed _assetOne,
+        address indexed _assetTwo,
+        address _newOracle
+    );
     event AdapterAdded(address _adapter);
     event AdapterRemoved(address _adapter);
     event MasterQuoteAssetEdited(address _newMasterQuote);
@@ -83,14 +78,13 @@ contract PriceOracle is Ownable {
         address[] memory _assetOnes,
         address[] memory _assetTwos,
         IOracle[] memory _oracles
-    )
-        public
-    {
+    ) public {
         controller = _controller;
         masterQuoteAsset = _masterQuoteAsset;
         adapters = _adapters;
         require(
-            _assetOnes.length == _assetTwos.length && _assetTwos.length == _oracles.length,
+            _assetOnes.length == _assetTwos.length &&
+                _assetTwos.length == _oracles.length,
             "Array lengths do not match."
         );
 
@@ -114,7 +108,10 @@ contract PriceOracle is Ownable {
      * @param _assetTwo         Address of second asset in pair
      * @return                  Price of asset pair to 18 decimals of precision
      */
-    function getPrice(address _assetOne, address _assetTwo) external view returns (uint256) {
+    function getPrice(
+        address _assetOne,
+        address _assetTwo
+    ) external view returns (uint256) {
         require(
             controller.isSystemContract(msg.sender),
             "PriceOracle.getPrice: Caller must be system contract."
@@ -126,7 +123,10 @@ contract PriceOracle is Ownable {
         (priceFound, price) = _getDirectOrInversePrice(_assetOne, _assetTwo);
 
         if (!priceFound) {
-            (priceFound, price) = _getPriceFromMasterQuote(_assetOne, _assetTwo);
+            (priceFound, price) = _getPriceFromMasterQuote(
+                _assetOne,
+                _assetTwo
+            );
         }
 
         if (!priceFound) {
@@ -145,7 +145,11 @@ contract PriceOracle is Ownable {
      * @param _assetTwo         Address of second asset in pair
      * @param _oracle           Address of asset pair's oracle
      */
-    function addPair(address _assetOne, address _assetTwo, IOracle _oracle) external onlyOwner {
+    function addPair(
+        address _assetOne,
+        address _assetTwo,
+        IOracle _oracle
+    ) external onlyOwner {
         require(
             address(oracles[_assetOne][_assetTwo]) == address(0),
             "PriceOracle.addPair: Pair already exists."
@@ -162,7 +166,11 @@ contract PriceOracle is Ownable {
      * @param _assetTwo         Address of second asset in pair
      * @param _oracle           Address of asset pair's new oracle
      */
-    function editPair(address _assetOne, address _assetTwo, IOracle _oracle) external onlyOwner {
+    function editPair(
+        address _assetOne,
+        address _assetTwo,
+        IOracle _oracle
+    ) external onlyOwner {
         require(
             address(oracles[_assetOne][_assetTwo]) != address(0),
             "PriceOracle.editPair: Pair doesn't exist."
@@ -178,7 +186,10 @@ contract PriceOracle is Ownable {
      * @param _assetOne         Address of first asset in pair
      * @param _assetTwo         Address of second asset in pair
      */
-    function removePair(address _assetOne, address _assetTwo) external onlyOwner {
+    function removePair(
+        address _assetOne,
+        address _assetTwo
+    ) external onlyOwner {
         require(
             address(oracles[_assetOne][_assetTwo]) != address(0),
             "PriceOracle.removePair: Pair doesn't exist."
@@ -224,7 +235,9 @@ contract PriceOracle is Ownable {
      *
      * @param _newMasterQuoteAsset         New address of master quote asset
      */
-    function editMasterQuoteAsset(address _newMasterQuoteAsset) external onlyOwner {
+    function editMasterQuoteAsset(
+        address _newMasterQuoteAsset
+    ) external onlyOwner {
         masterQuoteAsset = _newMasterQuoteAsset;
 
         emit MasterQuoteAssetEdited(_newMasterQuoteAsset);
@@ -253,11 +266,7 @@ contract PriceOracle is Ownable {
     function _getDirectOrInversePrice(
         address _assetOne,
         address _assetTwo
-    )
-        internal
-        view
-        returns (bool, uint256)
-    {
+    ) internal view returns (bool, uint256) {
         IOracle directOracle = oracles[_assetOne][_assetTwo];
         bool hasDirectOracle = address(directOracle) != address(0);
 
@@ -289,20 +298,16 @@ contract PriceOracle is Ownable {
     function _getPriceFromMasterQuote(
         address _assetOne,
         address _assetTwo
-    )
-        internal
-        view
-        returns (bool, uint256)
-    {
-        (
-            bool priceFoundOne,
-            uint256 assetOnePrice
-        ) = _getDirectOrInversePrice(_assetOne, masterQuoteAsset);
+    ) internal view returns (bool, uint256) {
+        (bool priceFoundOne, uint256 assetOnePrice) = _getDirectOrInversePrice(
+            _assetOne,
+            masterQuoteAsset
+        );
 
-        (
-            bool priceFoundTwo,
-            uint256 assetTwoPrice
-        ) = _getDirectOrInversePrice(_assetTwo, masterQuoteAsset);
+        (bool priceFoundTwo, uint256 assetTwoPrice) = _getDirectOrInversePrice(
+            _assetTwo,
+            masterQuoteAsset
+        );
 
         if (priceFoundOne && priceFoundTwo) {
             return (true, assetOnePrice.preciseDiv(assetTwoPrice));
@@ -323,16 +328,10 @@ contract PriceOracle is Ownable {
     function _getPriceFromAdapters(
         address _assetOne,
         address _assetTwo
-    )
-        internal
-        view
-        returns (bool, uint256)
-    {
+    ) internal view returns (bool, uint256) {
         for (uint256 i = 0; i < adapters.length; i++) {
-            (
-                bool priceFound,
-                uint256 price
-            ) = IOracleAdapter(adapters[i]).getPrice(_assetOne, _assetTwo);
+            (bool priceFound, uint256 price) = IOracleAdapter(adapters[i])
+                .getPrice(_assetOne, _assetTwo);
 
             if (priceFound) {
                 return (priceFound, price);
@@ -348,7 +347,9 @@ contract PriceOracle is Ownable {
      * @param _inverseOracle        Address of oracle to invert
      * @return uint256              Inverted price of asset pair to 18 decimal precision
      */
-    function _calculateInversePrice(IOracle _inverseOracle) internal view returns(uint256) {
+    function _calculateInversePrice(
+        IOracle _inverseOracle
+    ) internal view returns (uint256) {
         uint256 inverseValue = _inverseOracle.read();
 
         return PreciseUnitMath.preciseUnit().preciseDiv(inverseValue);

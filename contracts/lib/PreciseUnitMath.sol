@@ -1,28 +1,11 @@
-/*
-    Copyright 2020 Set Labs Inc.
-
-    Licensed under the Apache License, Version 2.0 (the "License");
-    you may not use this file except in compliance with the License.
-    You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-    Unless required by applicable law or agreed to in writing, software
-    distributed under the License is distributed on an "AS IS" BASIS,
-    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-    See the License for the specific language governing permissions and
-    limitations under the License.
-
-    SPDX-License-Identifier: Apache License, Version 2.0
-*/
+// SPDX-License-Identifier: MIT
 
 pragma solidity 0.6.10;
 pragma experimental ABIEncoderV2;
 
-import { SafeCast } from "@openzeppelin/contracts/utils/SafeCast.sol";
-import { SafeMath } from "@openzeppelin/contracts/math/SafeMath.sol";
-import { SignedSafeMath } from "@openzeppelin/contracts/math/SignedSafeMath.sol";
-
+import {SafeCast} from "@openzeppelin/contracts/utils/SafeCast.sol";
+import {SafeMath} from "@openzeppelin/contracts/math/SafeMath.sol";
+import {SignedSafeMath} from "@openzeppelin/contracts/math/SignedSafeMath.sol";
 
 /**
  * @title PreciseUnitMath
@@ -43,14 +26,14 @@ library PreciseUnitMath {
     using SafeCast for int256;
 
     // The number One in precise units.
-    uint256 constant internal PRECISE_UNIT = 10 ** 18;
-    int256 constant internal PRECISE_UNIT_INT = 10 ** 18;
+    uint256 internal constant PRECISE_UNIT = 10 ** 18;
+    int256 internal constant PRECISE_UNIT_INT = 10 ** 18;
 
     // Max unsigned integer value
-    uint256 constant internal MAX_UINT_256 = type(uint256).max;
+    uint256 internal constant MAX_UINT_256 = type(uint256).max;
     // Max and min signed integer value
-    int256 constant internal MAX_INT_256 = type(int256).max;
-    int256 constant internal MIN_INT_256 = type(int256).min;
+    int256 internal constant MAX_INT_256 = type(int256).max;
+    int256 internal constant MIN_INT_256 = type(int256).min;
 
     /**
      * @dev Getter function since constants can't be read directly from libraries.
@@ -107,7 +90,10 @@ library PreciseUnitMath {
      * @dev Multiplies value a by value b (result is rounded up). It's assumed that the value b is the significand
      * of a number with 18 decimals precision.
      */
-    function preciseMulCeil(uint256 a, uint256 b) internal pure returns (uint256) {
+    function preciseMulCeil(
+        uint256 a,
+        uint256 b
+    ) internal pure returns (uint256) {
         if (a == 0 || b == 0) {
             return 0;
         }
@@ -121,7 +107,6 @@ library PreciseUnitMath {
         return a.mul(PRECISE_UNIT).div(b);
     }
 
-
     /**
      * @dev Divides value a by value b (result is rounded towards 0).
      */
@@ -132,7 +117,10 @@ library PreciseUnitMath {
     /**
      * @dev Divides value a by value b (result is rounded up or away from 0).
      */
-    function preciseDivCeil(uint256 a, uint256 b) internal pure returns (uint256) {
+    function preciseDivCeil(
+        uint256 a,
+        uint256 b
+    ) internal pure returns (uint256) {
         require(b != 0, "Cant divide by 0");
 
         return a > 0 ? a.mul(PRECISE_UNIT).sub(1).div(b).add(1) : 0;
@@ -144,7 +132,7 @@ library PreciseUnitMath {
      */
     function preciseDivCeil(int256 a, int256 b) internal pure returns (int256) {
         require(b != 0, "Cant divide by 0");
-        
+
         a = a.mul(PRECISE_UNIT_INT);
         int256 c = a.div(b);
 
@@ -175,7 +163,10 @@ library PreciseUnitMath {
      * @dev Multiplies value a by value b where rounding is towards the lesser number.
      * (positive values are rounded towards zero and negative values are rounded away from 0).
      */
-    function conservativePreciseMul(int256 a, int256 b) internal pure returns (int256) {
+    function conservativePreciseMul(
+        int256 a,
+        int256 b
+    ) internal pure returns (int256) {
         return divDown(a.mul(b), PRECISE_UNIT_INT);
     }
 
@@ -183,25 +174,21 @@ library PreciseUnitMath {
      * @dev Divides value a by value b where rounding is towards the lesser number.
      * (positive values are rounded towards zero and negative values are rounded away from 0).
      */
-    function conservativePreciseDiv(int256 a, int256 b) internal pure returns (int256) {
+    function conservativePreciseDiv(
+        int256 a,
+        int256 b
+    ) internal pure returns (int256) {
         return divDown(a.mul(PRECISE_UNIT_INT), b);
     }
 
     /**
-    * @dev Performs the power on a specified value, reverts on overflow.
-    */
-    function safePower(
-        uint256 a,
-        uint256 pow
-    )
-        internal
-        pure
-        returns (uint256)
-    {
+     * @dev Performs the power on a specified value, reverts on overflow.
+     */
+    function safePower(uint256 a, uint256 pow) internal pure returns (uint256) {
         require(a > 0, "Value must be positive");
 
         uint256 result = 1;
-        for (uint256 i = 0; i < pow; i++){
+        for (uint256 i = 0; i < pow; i++) {
             uint256 previousResult = result;
 
             // Using safemath multiplication prevents overflows
@@ -214,7 +201,11 @@ library PreciseUnitMath {
     /**
      * @dev Returns true if a =~ b within range, false otherwise.
      */
-    function approximatelyEquals(uint256 a, uint256 b, uint256 range) internal pure returns (bool) {
+    function approximatelyEquals(
+        uint256 a,
+        uint256 b,
+        uint256 range
+    ) internal pure returns (bool) {
         return a <= b.add(range) && a >= b.sub(range);
     }
 
