@@ -19,17 +19,17 @@ pragma experimental "ABIEncoderV2";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Math} from "@openzeppelin/contracts/math/Math.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
-import {Invoke} from "../../lib/Invoke.sol";
-import {Position} from "../../lib/Position.sol";
-import {PreciseUnitMath} from "../../../lib/PreciseUnitMath.sol";
-import {ISetToken} from "../../../interfaces/ISetToken.sol";
-import {ModuleBase} from "../../lib/ModuleBase.sol";
-import {IController} from "../../../interfaces/IController.sol";
-import {AddressArrayUtils} from "../../../lib/AddressArrayUtils.sol";
-import {TickBitmap} from "../../../lib/TickBitmap.sol";
-import {ValuePosition} from "../../../lib/ValuePosition.sol";
+import {Invoke} from "../lib/Invoke.sol";
+import {Position} from "../lib/Position.sol";
+import {PreciseUnitMath} from "../../lib/PreciseUnitMath.sol";
+import {ISetToken} from "../../interfaces/ISetToken.sol";
+import {ModuleBase} from "../lib/ModuleBase.sol";
+import {IController} from "../../interfaces/IController.sol";
+import {AddressArrayUtils} from "../../lib/AddressArrayUtils.sol";
+import {TickBitmap} from "../../lib/TickBitmap.sol";
+import {ValuePosition} from "../../lib/ValuePosition.sol";
 
-contract AuctionRebalanceIssuanceModule is ModuleBase, ReentrancyGuard {
+contract AuctionRebalanceModule is ModuleBase, ReentrancyGuard {
     using Invoke for ISetToken;
     using Position for ISetToken.Position;
     using Position for ISetToken;
