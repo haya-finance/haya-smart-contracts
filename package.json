@@ -12,13 +12,10 @@
   },
   "dependencies": {
     "@ethersproject/providers": "^5.7.2",
-    "@openzeppelin-upgradeable/contracts": "npm:@openzeppelin/contracts-upgradeable@4.5.2",
-    "@uniswap/v3-core": "^1.0.1",
     "dotenv": "^16.4.5",
     "hardhat-contract-sizer": "^2.10.0",
     "hardhat-typechain": "^0.3.5",
     "notional-solidity-sdk": "https://github.com/ckoopmann/notional-solidity-sdk.git#77aa2f8fd8a72b8f5865e561f2d39d4606c3740c",
-    "openzeppelin-contracts-5": "npm:@openzeppelin/contracts@^5.0.0",
     "wrapped-fcash": "https://github.com/ckoopmann/wrapped-fcash.git#6b7d870c9b750aa343f0405f3543c9bbb0e3cdfc"
   }
 }
