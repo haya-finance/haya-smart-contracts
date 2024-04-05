@@ -40,26 +40,24 @@ contract AuctionRebalanceModule is ModuleBase, ReentrancyGuard {
     /* ============ State Variables ============ */
 
     mapping(ISetToken => uint256) public serialIds; // For recording rebalance serial, start at No 1.
-    mapping(ISetToken => mapping(uint256 => int24)) public maxTicks; // Each setup balance maximum tick record. If the highest record is cancelled, the maximum value will remain.
-    mapping(ISetToken => mapping(uint256 => int24)) public winningBidTick; // Price win the bid. If win tick = 0, bid may not get full. _totalVirtualAmount will be sign.
     mapping(ISetToken => mapping(uint256 => RebalanceInfo))
         public rebalanceInfos; // Recorded all rebalance info.
-
     mapping(ISetToken => mapping(uint256 => mapping(int16 => uint256)))
         public tickBitmaps;
-    mapping(ISetToken => mapping(bytes32 => ValuePosition.Info))
-        public valuePositions; // Storage user amount in tick and status claimed
-    mapping(ISetToken => mapping(uint256 => mapping(int24 => int256)))
-        public virtualAmountsOnTicks; // The total amount reserved on each tick
 
+    mapping(ISetToken => mapping(uint256 => int24)) private _maxTicks; // Each setup balance maximum tick record. If the highest record is cancelled, the maximum value will remain.
+    mapping(ISetToken => mapping(bytes32 => ValuePosition.Info))
+        private _valuePositions; // Storage user amount in tick and status claimed
+    mapping(ISetToken => mapping(uint256 => mapping(int24 => int256)))
+        private _virtualAmountsOnTicks; // The total amount reserved on each tick
     // This variable can only be set if it is overrecruited
     mapping(ISetToken => mapping(uint256 => int256))
-        public exactTickAboveGetProportion; // The percentage of tokens that users who are bid at exact tick will be able to acquire 10% = 0.1*10**18
+        private _exactTickAboveGetProportion; // The percentage of tokens that users who are bid at exact tick will be able to acquire 10% = 0.1*10**18
+    mapping(ISetToken => mapping(uint256 => int24)) private _winningBidTick; // Price win the bid. If win tick = 0, bid may not get full. _totalVirtualAmount will be sign.
 
     /* ============ Structs ============ */
     struct RebalanceInfo {
         RebalanceStatus status; // Status.
-        int256 positionMultiplier; // Position multiplier when target units were calculated.
         uint256 rebalanceStartTime; // Unix timestamp marking the start of the rebalance.
         uint256 rebalanceDuration; // Duration of the rebalance in seconds, exp 3 days.
         address[] rebalanceComponents; // List of component tokens involved in the rebalance.
@@ -89,7 +87,6 @@ contract AuctionRebalanceModule is ModuleBase, ReentrancyGuard {
         bool _isSuccess,
         int24 _winTick
     );
-
     event Bid(
         address indexed _setToken,
         address indexed _account,
@@ -162,7 +159,6 @@ contract AuctionRebalanceModule is ModuleBase, ReentrancyGuard {
 
         RebalanceInfo storage info = rebalanceInfos[_setToken][serialId];
         info.status = RebalanceStatus.PROGRESSING;
-        info.positionMultiplier = _setToken.positionMultiplier();
         info.rebalanceStartTime = _rebalanceStartTime;
         info.rebalanceDuration = _rebalanceDuration;
         info.rebalanceComponents = _rebalanceComponents;
@@ -446,7 +442,7 @@ contract AuctionRebalanceModule is ModuleBase, ReentrancyGuard {
         ISetToken _setToken,
         uint256 _serialId
     ) external view returns (int24 winTick) {
-        winTick = winningBidTick[_setToken][_serialId];
+        winTick = _winningBidTick[_setToken][_serialId];
     }
 
     /**
@@ -502,9 +498,25 @@ contract AuctionRebalanceModule is ModuleBase, ReentrancyGuard {
     }
 
     /**
+     * @notice  Get the total number of bids on a tick.
+     * @dev     .
+     * @param   _setToken  The target sets contract address of the operation.
+     * @param   _serialId  The serial number of the auction, in increments.
+     * @param   _tick  The minimum price is used as the criterion to interval the number of spaces.
+     * @return  int256  Returns the total number of bids on a tick.
+     */
+    function getTotalVirtualAmountsOnTick(
+        ISetToken _setToken,
+        uint256 _serialId,
+        int24 _tick
+    ) external view returns (int256) {
+        return _virtualAmountsOnTicks[_setToken][_serialId][_tick];
+    }
+
+    /**
      * @notice  Get the proportion of users who actually win bids.
      * @dev     .
-     * @param   _setToken  The target sets contract address of the operation..
+     * @param   _setToken  The target sets contract address of the operation.
      * @param   _serialId  The serial number of the auction, in increments.
      * @param   _account  Bidder account address.
      * @param   _tick  The minimum price is used as the criterion to interval the number of spaces.
@@ -573,7 +585,7 @@ contract AuctionRebalanceModule is ModuleBase, ReentrancyGuard {
             info.rebalanceAmounts
         );
 
-        ValuePosition.Info storage _valuePosition = valuePositions[_setToken]
+        ValuePosition.Info storage _valuePosition = _valuePositions[_setToken]
             .get(serialId, msg.sender, _tick);
         _valuePosition.add(_virtualAmount);
 
@@ -601,7 +613,7 @@ contract AuctionRebalanceModule is ModuleBase, ReentrancyGuard {
     function _cancelBid(ISetToken _setToken, int24 _tick) internal {
         require(_tick >= 0, "Tick need be bigger than 0");
         uint256 serialId = serialIds[_setToken];
-        ValuePosition.Info storage _valuePosition = valuePositions[_setToken]
+        ValuePosition.Info storage _valuePosition = _valuePositions[_setToken]
             .get(serialId, msg.sender, _tick);
         int256 virtualAmount = _valuePosition.virtualAmount;
         _valuePosition.sub(virtualAmount);
@@ -669,7 +681,7 @@ contract AuctionRebalanceModule is ModuleBase, ReentrancyGuard {
         address _account,
         int24 _tick
     ) internal {
-        ValuePosition.Info storage _valuePosition = valuePositions[_setToken]
+        ValuePosition.Info storage _valuePosition = _valuePositions[_setToken]
             .get(_serialId, _account, _tick);
         require(!_valuePosition.claimed, "Already been claimed");
         int256 virtualAmount = _valuePosition.virtualAmount;
@@ -699,7 +711,7 @@ contract AuctionRebalanceModule is ModuleBase, ReentrancyGuard {
         address _account,
         int24 _tick
     ) internal {
-        ValuePosition.Info storage _valuePosition = valuePositions[_setToken]
+        ValuePosition.Info storage _valuePosition = _valuePositions[_setToken]
             .get(_serialId, _account, _tick);
         require(!_valuePosition.claimed, "Already been claimed");
         int256 virtualAmount = _valuePosition.virtualAmount;
@@ -713,7 +725,7 @@ contract AuctionRebalanceModule is ModuleBase, ReentrancyGuard {
                 _tick,
                 virtualAmount
             );
-        int24 winTick = winningBidTick[_setToken][_serialId];
+        int24 winTick = _winningBidTick[_setToken][_serialId];
 
         if (_tick < winTick) {
             // no win bid
@@ -730,7 +742,7 @@ contract AuctionRebalanceModule is ModuleBase, ReentrancyGuard {
                 info._totalVirtualAmount > VIRTUAL_BASE_AMOUNT &&
                 winTick == _tick
             ) {
-                biddedVirtualAmount = exactTickAboveGetProportion[_setToken][
+                biddedVirtualAmount = _exactTickAboveGetProportion[_setToken][
                     _serialId
                 ].preciseMul(virtualAmount);
             }
@@ -890,7 +902,7 @@ contract AuctionRebalanceModule is ModuleBase, ReentrancyGuard {
                 int256 overBidVirtualAmount = totalVirtualAmount.sub(
                     VIRTUAL_BASE_AMOUNT
                 );
-                exactTickAboveGetProportion[_setToken][
+                _exactTickAboveGetProportion[_setToken][
                     serialId
                 ] = lastTickVirtualAmount.sub(overBidVirtualAmount).preciseDiv(
                     lastTickVirtualAmount
@@ -898,7 +910,7 @@ contract AuctionRebalanceModule is ModuleBase, ReentrancyGuard {
             }
             info._totalVirtualAmount = totalVirtualAmount;
             info.status = RebalanceStatus.SUCCESSED;
-            winningBidTick[_setToken][serialId] = winTick;
+            _winningBidTick[_setToken][serialId] = winTick;
             // for caculate
             if (totalVirtualAmount > VIRTUAL_BASE_AMOUNT) {
                 totalVirtualAmount = VIRTUAL_BASE_AMOUNT;
@@ -952,7 +964,7 @@ contract AuctionRebalanceModule is ModuleBase, ReentrancyGuard {
             int256 lastTickVirtualAmount
         )
     {
-        int24 maxTick = maxTicks[_setToken][_serialId];
+        int24 maxTick = _maxTicks[_setToken][_serialId];
         mapping(int16 => uint256) storage tickBitmap = tickBitmaps[_setToken][
             _serialId
         ];
@@ -968,7 +980,7 @@ contract AuctionRebalanceModule is ModuleBase, ReentrancyGuard {
                 break;
             }
             if (inited) {
-                lastTickVirtualAmount = virtualAmountsOnTicks[_setToken][
+                lastTickVirtualAmount = _virtualAmountsOnTicks[_setToken][
                     _serialId
                 ][winTick];
                 totalVirtualAmount += lastTickVirtualAmount; // if user cancel bid, virtual amount maybe zero.
@@ -1030,12 +1042,12 @@ contract AuctionRebalanceModule is ModuleBase, ReentrancyGuard {
         int24 _tick,
         int256 _virtualAmount
     ) internal returns (int256 totalVirtualAmountAfter) {
-        int256 totalVirtualAmountBefore = virtualAmountsOnTicks[_setToken][
+        int256 totalVirtualAmountBefore = _virtualAmountsOnTicks[_setToken][
             _serialId
         ][_tick];
         totalVirtualAmountAfter = totalVirtualAmountBefore + _virtualAmount;
         require(totalVirtualAmountAfter >= 0, "Nerver less than zero");
-        virtualAmountsOnTicks[_setToken][_serialId][
+        _virtualAmountsOnTicks[_setToken][_serialId][
             _tick
         ] = totalVirtualAmountAfter;
     }
@@ -1046,7 +1058,7 @@ contract AuctionRebalanceModule is ModuleBase, ReentrancyGuard {
         address _account,
         int24 _tick
     ) internal view returns (int256) {
-        ValuePosition.Info memory _valuePosition = valuePositions[_setToken]
+        ValuePosition.Info memory _valuePosition = _valuePositions[_setToken]
             .get(_serialId, _account, _tick);
         return _valuePosition.virtualAmount;
     }
@@ -1078,9 +1090,9 @@ contract AuctionRebalanceModule is ModuleBase, ReentrancyGuard {
         uint256 _serialId,
         int24 _tick
     ) internal {
-        int24 lastTick = maxTicks[_setToken][_serialId];
+        int24 lastTick = _maxTicks[_setToken][_serialId];
         if (lastTick < _tick) {
-            maxTicks[_setToken][_serialId] = _tick;
+            _maxTicks[_setToken][_serialId] = _tick;
         }
     }
 
