@@ -1,4 +1,4 @@
-import { ethers, run } from "hardhat";
+import { ethers } from "hardhat";
 async function main() {
     const [owner] = await ethers.getSigners();
     const ControllerAddress = "0xc8548a0f72a6baa5a7bca998a10ab3b22e121f8f";

@@ -128,7 +128,7 @@ contract AuctionRebalanceModule is ModuleBase, ReentrancyGuard {
      * @param   _priceSpacing  Price Minimum Interval.
      */
 
-    function setupA(
+    function setupAuction(
         ISetToken _setToken,
         address[] memory _rebalanceComponents,
         int256[] memory _rebalanceAmounts,

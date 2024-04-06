@@ -1,4 +1,4 @@
-import { ethers, run } from "hardhat";
+import { ethers } from "hardhat";
 async function main() {
     const [owner] = await ethers.getSigners();
 
@@ -15,14 +15,14 @@ async function main() {
         "0xD458e00e5ad8264aBa545dDfAB58409e8D4AB8e4",
     ];
 
-    const targetAddress = "";
+    const targetAddress = "0xc1E96EB4D1ddfCb593E6FCae23869C650bE4c9dB";
 
 
     for (let tokenAddress of tokensAddress) {
         const StandardTokenMock = await ethers.getContractFactory("StandardTokenMock");
         const deployedToken = await StandardTokenMock.attach(tokenAddress);
         let approve = await deployedToken.approve(targetAddress, ethers.constants.MaxUint256);
-        await approve.wait();
+        // await approve.wait();
     }
 }
 

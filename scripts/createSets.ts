@@ -1,4 +1,4 @@
-import { ethers, run } from "hardhat";
+import { ethers } from "hardhat";
 async function main() {
     const [owner] = await ethers.getSigners();
     const SetTokenCreatorAddress = "0xC427b85123271A24c495f5D5cCF7fd2a018365B2";

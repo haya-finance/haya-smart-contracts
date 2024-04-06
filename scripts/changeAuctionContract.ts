@@ -1,12 +1,12 @@
-import { ethers, run } from "hardhat";
+import { ethers } from "hardhat";
 async function main() {
     const [owner] = await ethers.getSigners();
     const SetTokenAddress = "0x8E6795eA1242486CF498DD587F4933005586142B";
     const ControllerAddress = "0xc8548a0f72a6baa5a7bca998a10ab3b22e121f8f";
 
 
-    const oldAuctionRebalanceModuleAddress = "0x7Ee4857161b273390fED3B6a52577b7f0D6f8a97";
-    const newAuctionRebalanceModuleAddress = "0xC8B5c3Dc61dF97F996cBE4E1cA61a874E4cEC8C1";
+    const oldAuctionRebalanceModuleAddress = "0xC8B5c3Dc61dF97F996cBE4E1cA61a874E4cEC8C1";
+    const newAuctionRebalanceModuleAddress = "0xc1E96EB4D1ddfCb593E6FCae23869C650bE4c9dB";
 
     const AuctionRebalanceModule = await ethers.getContractFactory("AuctionRebalanceModule");
 
