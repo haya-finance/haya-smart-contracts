@@ -14,9 +14,9 @@ library TickBitmap {
     /// @return bitPos The bit position in the word where the flag is stored
     function position(
         int24 tick
-    ) private pure returns (int16 wordPos, uint8 bitPos) {
+    ) private pure returns (int16 wordPos, uint256 bitPos) {
         wordPos = int16(tick >> 8);
-        bitPos = uint8(tick % 256);
+        bitPos = uint256(tick % 256);
     }
 
     /// @notice Flips the initialized state for a given tick from false to true, or vice versa
@@ -29,7 +29,7 @@ library TickBitmap {
         int24 tickSpacing
     ) internal {
         require(tick % tickSpacing == 0); // ensure that the tick is spaced
-        (int16 wordPos, uint8 bitPos) = position(tick / tickSpacing);
+        (int16 wordPos, uint256 bitPos) = position(tick / tickSpacing);
         uint256 mask = 1 << bitPos;
         self[wordPos] ^= mask;
     }
@@ -52,7 +52,7 @@ library TickBitmap {
         if (tick < 0 && tick % tickSpacing != 0) compressed--; // round towards negative infinity
 
         if (lte) {
-            (int16 wordPos, uint8 bitPos) = position(compressed);
+            (int16 wordPos, uint256 bitPos) = position(compressed);
             // all the 1s at or to the right of the current bitPos
             uint256 mask = (1 << bitPos) - 1 + (1 << bitPos);
             uint256 masked = self[wordPos] & mask;
@@ -67,7 +67,7 @@ library TickBitmap {
                 : (compressed - int24(bitPos)) * tickSpacing;
         } else {
             // start from the word of the next tick, since the current tick state doesn't matter
-            (int16 wordPos, uint8 bitPos) = position(compressed + 1);
+            (int16 wordPos, uint256 bitPos) = position(compressed + 1);
             // all the 1s at or to the left of the bitPos
             uint256 mask = ~((1 << bitPos) - 1);
             uint256 masked = self[wordPos] & mask;

@@ -8,7 +8,7 @@ async function main() {
     const BasicIssuanceModule = await ethers.getContractFactory("BasicIssuanceModule");
     const deployedBasicIssuanceModule = await BasicIssuanceModule.attach(BasicIssuanceModuleAddress);
 
-    let issue = await deployedBasicIssuanceModule.issue(SetTokenAddress, ethers.utils.parseUnits("12", 18), owner.address);
+    let issue = await deployedBasicIssuanceModule.issue(SetTokenAddress, ethers.utils.parseUnits("1000", 18), owner.address);
     await issue.wait();
 }
 

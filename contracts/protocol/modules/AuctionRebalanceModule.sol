@@ -34,6 +34,10 @@ contract AuctionRebalanceModule is ModuleBase, ReentrancyGuard {
         FAILURED
     }
 
+    /* ============ Constants ============ */
+
+    int24 internal constant MAXTICK = 32767;
+
     /* ============ Immutable ============ */
     int256 public immutable VIRTUAL_BASE_AMOUNT; // Just base for caculate
 
@@ -45,7 +49,7 @@ contract AuctionRebalanceModule is ModuleBase, ReentrancyGuard {
     mapping(ISetToken => mapping(uint256 => mapping(int16 => uint256)))
         public tickBitmaps;
 
-    mapping(ISetToken => mapping(uint256 => int24)) private _maxTicks; // Each setup balance maximum tick record. If the highest record is cancelled, the maximum value will remain.
+    mapping(ISetToken => mapping(uint256 => int24)) public _maxTicks; // Each setup balance maximum tick record. If the highest record is cancelled, the maximum value will remain.
     mapping(ISetToken => mapping(bytes32 => ValuePosition.Info))
         private _valuePositions; // Storage user amount in tick and status claimed
     mapping(ISetToken => mapping(uint256 => mapping(int24 => int256)))
@@ -78,7 +82,7 @@ contract AuctionRebalanceModule is ModuleBase, ReentrancyGuard {
     }
 
     /* ============ Events ============ */
-    event RebalanceSetuped(address indexed _setToken, uint256 _serialId);
+    event AuctionSetuped(address indexed _setToken, uint256 _serialId);
 
     // If the auction result is successful, the winning tick will have a value
     event AuctionResultSet(
@@ -171,7 +175,7 @@ contract AuctionRebalanceModule is ModuleBase, ReentrancyGuard {
             VIRTUAL_BASE_AMOUNT
         );
         info._minBasePrice = minBasePrice;
-        emit RebalanceSetuped(address(_setToken), serialId);
+        emit AuctionSetuped(address(_setToken), serialId);
     }
 
     /**
@@ -406,7 +410,7 @@ contract AuctionRebalanceModule is ModuleBase, ReentrancyGuard {
      * @return  components  List of addresses of components for tranfer or send.
      * @return  amounts  If the amount is positive, contract send to user, and if it is negative, user send to contract.
      */
-    function getRequiredOrRewardComponentsAndAmountsOnTickForBid(
+    function getRequiredOrRewardComponentsAndAmountsForBid(
         ISetToken _setToken,
         uint256 _serialId,
         int256 _virtualAmount
@@ -563,6 +567,7 @@ contract AuctionRebalanceModule is ModuleBase, ReentrancyGuard {
         int256 _virtualAmount
     ) internal {
         require(_tick >= 0, "Tick need be bigger than 0");
+        require(_tick <= MAXTICK, "Tick too big");
         uint256 serialId = serialIds[_setToken];
         RebalanceInfo storage info = rebalanceInfos[_setToken][serialId];
         require(
@@ -593,12 +598,12 @@ contract AuctionRebalanceModule is ModuleBase, ReentrancyGuard {
             serialId
         ];
         // make sure this tick 0
-        (, bool inited) = tickBitmap.nextInitializedTickWithinOneWord(
+        (int24 next, bool inited) = tickBitmap.nextInitializedTickWithinOneWord(
             _tick,
             1,
             false
         );
-        if (!inited) {
+        if (!inited || next != _tick) {
             tickBitmap.flipTick(_tick, 1);
         }
         _updateTotalVirtualAmountsOnTick(
@@ -608,6 +613,13 @@ contract AuctionRebalanceModule is ModuleBase, ReentrancyGuard {
             _virtualAmount
         );
         _updateMaxTick(_setToken, serialId, _tick);
+        emit Bid(
+            address(_setToken),
+            msg.sender,
+            serialId,
+            _tick,
+            _virtualAmount
+        );
     }
 
     function _cancelBid(ISetToken _setToken, int24 _tick) internal {
@@ -766,8 +778,6 @@ contract AuctionRebalanceModule is ModuleBase, ReentrancyGuard {
                 info.rebalanceAmounts
             );
 
-            _sentSetsRewards(_setToken, _account, ultimatelyConsumedSets);
-
             _sentTokenRewards(
                 _account,
                 biddedVirtualAmount,
@@ -783,7 +793,7 @@ contract AuctionRebalanceModule is ModuleBase, ReentrancyGuard {
         int256 _amount
     ) internal {
         if (_amount > 0) {
-            transferFrom(_setToken, address(this), _account, uint256(_amount));
+            IERC20(_setToken).transfer(_account, uint256(_amount));
         }
     }
 
@@ -797,23 +807,11 @@ contract AuctionRebalanceModule is ModuleBase, ReentrancyGuard {
             int256 totalAmount = _amounts[i];
             if (totalAmount < 0) {
                 int256 amount2Transfer = totalAmount.preciseMul(_virtualAmount);
-                transferFrom(
-                    IERC20(_components[i]),
-                    address(this),
+                IERC20(_components[i]).transfer(
                     _account,
                     amount2Transfer.abs()
                 );
             }
-        }
-    }
-
-    function _sentSetsRewards(
-        ISetToken _setToken,
-        address _account,
-        int256 _amount
-    ) internal {
-        if (_amount < 0) {
-            transferFrom(_setToken, address(this), _account, _amount.abs());
         }
     }
 
@@ -826,14 +824,11 @@ contract AuctionRebalanceModule is ModuleBase, ReentrancyGuard {
         for (uint256 i = 0; i < _components.length; i++) {
             int256 totalAmount = _amounts[i];
             if (totalAmount > 0) {
-                int256 amount2Transfer = totalAmount
-                    .preciseMul(_virtualAmount)
-                    .add(1); // trik, Why didn't you choose to subtract one from the time of withdrawal, because it is possible that the user will deposit multiple times, but only once withdraw.
-                transferFrom(
-                    IERC20(_components[i]),
+                int256 amount2Transfer = totalAmount.preciseMul(_virtualAmount);
+
+                IERC20(_components[i]).transfer(
                     _account,
-                    address(this),
-                    amount2Transfer.abs()
+                    amount2Transfer.toUint256()
                 );
             }
         }
@@ -955,42 +950,34 @@ contract AuctionRebalanceModule is ModuleBase, ReentrancyGuard {
     function _searchWinningBidTick(
         ISetToken _setToken,
         uint256 _serialId
-    )
-        internal
-        view
-        returns (
-            int24 winTick,
-            int256 totalVirtualAmount,
-            int256 lastTickVirtualAmount
-        )
-    {
+    ) internal view returns (int24, int256, int256) {
         int24 maxTick = _maxTicks[_setToken][_serialId];
         mapping(int16 => uint256) storage tickBitmap = tickBitmaps[_setToken][
             _serialId
         ];
-        totalVirtualAmount = 0;
-        winTick = maxTick;
+        int24 currentTick = maxTick;
+        int24 winTick = maxTick;
+        int256 totalVirtualAmount = 0;
+        int256 lastTickVirtualAmount = 0;
         // if tick < 0, bid not full the pool. if tick >=0 and totalVirtualAmount >= VIRTUAL_BASE_AMOUNT, bid success.
-        while (true) {
+        while (totalVirtualAmount < VIRTUAL_BASE_AMOUNT) {
             (int24 next, bool inited) = tickBitmap
-                .nextInitializedTickWithinOneWord(winTick, 1, true);
+                .nextInitializedTickWithinOneWord(currentTick, 1, true);
             // Went through all the ticks and didn't get full
-            if (next < 0) {
-                winTick = 0;
-                break;
-            }
             if (inited) {
                 lastTickVirtualAmount = _virtualAmountsOnTicks[_setToken][
                     _serialId
-                ][winTick];
+                ][next];
                 totalVirtualAmount += lastTickVirtualAmount; // if user cancel bid, virtual amount maybe zero.
-                // bid full
-                if (totalVirtualAmount >= VIRTUAL_BASE_AMOUNT) {
-                    break;
-                }
+                winTick = next;
             }
-            winTick = next;
+            currentTick = next - 1;
+            if (currentTick < 0) {
+                winTick = 0;
+                break;
+            }
         }
+        return (winTick, totalVirtualAmount, lastTickVirtualAmount);
     }
 
     function _transferTokenAndUpdatePositionState(
@@ -1068,7 +1055,8 @@ contract AuctionRebalanceModule is ModuleBase, ReentrancyGuard {
         int256 _priceSpacing,
         int24 _tick,
         int256 _virtualAmount
-    ) internal pure returns (int256) {
+    ) public pure returns (int256) {
+        // !!!!!!private!!!!!
         int256 targetPrice = _caculateTargetPriceWithTick(
             _minBasePrice,
             _priceSpacing,
@@ -1081,7 +1069,8 @@ contract AuctionRebalanceModule is ModuleBase, ReentrancyGuard {
         int256 _minBasePrice,
         int256 _priceSpacing,
         int24 _tick
-    ) internal pure returns (int256) {
+    ) public pure returns (int256) {
+        // internal!!!!!!!!!
         return _minBasePrice.add(int256(_tick).mul(_priceSpacing));
     }
 
@@ -1109,7 +1098,7 @@ contract AuctionRebalanceModule is ModuleBase, ReentrancyGuard {
         );
         require(
             info.rebalanceStartTime <= block.timestamp &&
-                info.rebalanceStartTime + info.rebalanceDuration >=
+                info.rebalanceStartTime + info.rebalanceDuration >
                 block.timestamp,
             "Not bidding time"
         );

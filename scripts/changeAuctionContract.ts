@@ -5,8 +5,8 @@ async function main() {
     const ControllerAddress = "0xc8548a0f72a6baa5a7bca998a10ab3b22e121f8f";
 
 
-    const oldAuctionRebalanceModuleAddress = "0xC8B5c3Dc61dF97F996cBE4E1cA61a874E4cEC8C1";
-    const newAuctionRebalanceModuleAddress = "0xc1E96EB4D1ddfCb593E6FCae23869C650bE4c9dB";
+    const oldAuctionRebalanceModuleAddress = "0x890A7E036843f0790852ac7e24A95Fee3B7B3849";
+    const newAuctionRebalanceModuleAddress = "0xb5ed7eDf57B1A41545386eCb98cA293a66A5E02a";
 
     const AuctionRebalanceModule = await ethers.getContractFactory("AuctionRebalanceModule");
 

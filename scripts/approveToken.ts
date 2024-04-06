@@ -15,7 +15,7 @@ async function main() {
         "0xD458e00e5ad8264aBa545dDfAB58409e8D4AB8e4",
     ];
 
-    const targetAddress = "0xc1E96EB4D1ddfCb593E6FCae23869C650bE4c9dB";
+    const targetAddress = "0x3FA8e4bbcaea972b69507EAe8A927f293Ea11C05";
 
 
     for (let tokenAddress of tokensAddress) {
