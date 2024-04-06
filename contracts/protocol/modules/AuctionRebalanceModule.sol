@@ -62,7 +62,7 @@ contract AuctionRebalanceModule is ModuleBase, ReentrancyGuard {
         uint256 rebalanceDuration; // Duration of the rebalance in seconds, exp 3 days.
         address[] rebalanceComponents; // List of component tokens involved in the rebalance.
         int256[] rebalanceAmounts; // List of component tokens rebalance amounts, maybe nagtive.
-        int256 minBidAmount; // Minimum sets required for each bid.
+        int256 minBidVirtualAmount; // Minimum sets required for each bid.
         int256 minTotalAmountsSetsRequire; // Minimum sets required for the corresponding token quantity raised.
         int256 priceSpacing;
         int256 _minBasePrice; // For internal can be nagtive. Decimal 10**18.
@@ -123,19 +123,19 @@ contract AuctionRebalanceModule is ModuleBase, ReentrancyGuard {
      * @param   _rebalanceAmounts  The number of auctions, the positive number is for the tokens sold, and the negative number is the revenue tokens.
      * @param   _rebalanceStartTime  The time when the auction started.
      * @param   _rebalanceDuration  Auction duration, in seconds.
-     * @param   _minAmountsSetsRequire  The minimum number of sets expected to be received.
-     * @param   _minBidAmount  The minimum number of sets required at a time.
+     * @param   _targetAmountsSets  The minimum number of sets expected to be received.
+     * @param   _minBidVirtualAmount  The minimum number of sets required at a time.
      * @param   _priceSpacing  Price Minimum Interval.
      */
 
-    function setupRebalance(
+    function setupA(
         ISetToken _setToken,
         address[] memory _rebalanceComponents,
         int256[] memory _rebalanceAmounts,
         uint256 _rebalanceStartTime,
         uint256 _rebalanceDuration,
-        int256 _minAmountsSetsRequire,
-        int256 _minBidAmount,
+        int256 _targetAmountsSets,
+        int256 _minBidVirtualAmount,
         int256 _priceSpacing
     ) external nonReentrant onlyManagerAndValidSet(_setToken) {
         require(
@@ -163,11 +163,11 @@ contract AuctionRebalanceModule is ModuleBase, ReentrancyGuard {
         info.rebalanceDuration = _rebalanceDuration;
         info.rebalanceComponents = _rebalanceComponents;
         info.rebalanceAmounts = _rebalanceAmounts;
-        info.minTotalAmountsSetsRequire = _minAmountsSetsRequire;
-        info.minBidAmount = _minBidAmount;
+        info.minTotalAmountsSetsRequire = _targetAmountsSets;
+        info.minBidVirtualAmount = _minBidVirtualAmount;
         info.priceSpacing = _priceSpacing;
 
-        int256 minBasePrice = _minAmountsSetsRequire.preciseDiv(
+        int256 minBasePrice = _targetAmountsSets.preciseDiv(
             VIRTUAL_BASE_AMOUNT
         );
         info._minBasePrice = minBasePrice;
@@ -562,20 +562,20 @@ contract AuctionRebalanceModule is ModuleBase, ReentrancyGuard {
         int24 _tick,
         int256 _virtualAmount
     ) internal {
-        require(_virtualAmount > 0, "Virtual amount must be positive number");
         require(_tick >= 0, "Tick need be bigger than 0");
         uint256 serialId = serialIds[_setToken];
         RebalanceInfo storage info = rebalanceInfos[_setToken][serialId];
+        require(
+            _virtualAmount >= info.minBidVirtualAmount,
+            "Virtual quantity not meeting the requirements"
+        );
         int256 setsTokenAmountNeeded = _caculateRequiredOrRewardsSetsAmountsOnTickForBid(
                 info._minBasePrice,
                 info.priceSpacing,
                 _tick,
                 _virtualAmount
             );
-        require(
-            setsTokenAmountNeeded >= info.minBidAmount,
-            "Sets quantity not meeting the requirements"
-        );
+
         // tranfer token if needed
         _transferBidSets(_setToken, msg.sender, setsTokenAmountNeeded);
         _transferBidToken(
