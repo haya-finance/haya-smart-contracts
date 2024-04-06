@@ -1055,8 +1055,7 @@ contract AuctionRebalanceModule is ModuleBase, ReentrancyGuard {
         int256 _priceSpacing,
         int24 _tick,
         int256 _virtualAmount
-    ) public pure returns (int256) {
-        // !!!!!!private!!!!!
+    ) internal pure returns (int256) {
         int256 targetPrice = _caculateTargetPriceWithTick(
             _minBasePrice,
             _priceSpacing,
@@ -1069,8 +1068,7 @@ contract AuctionRebalanceModule is ModuleBase, ReentrancyGuard {
         int256 _minBasePrice,
         int256 _priceSpacing,
         int24 _tick
-    ) public pure returns (int256) {
-        // internal!!!!!!!!!
+    ) internal pure returns (int256) {
         return _minBasePrice.add(int256(_tick).mul(_priceSpacing));
     }
 
