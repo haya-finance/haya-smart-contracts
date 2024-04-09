@@ -4,9 +4,9 @@
  * @LastEditors: Dev FullStackBuilds@gmail.com
  * @LastEditTime: 2024-03-31 15:10:17
  * @FilePath: /haya-smart-contracts/hardhat.config.ts
- * @Description: 
- * 
- * Copyright (c) 2024 by Haya, All Rights Reserved. 
+ * @Description:
+ *
+ * Copyright (c) 2024 by Haya, All Rights Reserved.
  */
 require("dotenv").config();
 
@@ -39,19 +39,20 @@ const config: HardhatUserConfig = {
   },
   networks: {
     hardhat: {
-      forking: process.env.FORK ? forkingConfig : undefined,
-      accounts: getHardhatPrivateKeys(),
+      // forking: process.env.FORK ? forkingConfig : undefined,
+      // accounts: getHardhatPrivateKeys(),
       // @ts-ignore
-      timeout: INTEGRATIONTEST_TIMEOUT,
-      initialBaseFeePerGas: 0,
-      ...gasOption,
+      // timeout: INTEGRATIONTEST_TIMEOUT,
+      // initialBaseFeePerGas: 0,
+      // ...gasOption,
+      // allowBlocksWithSameTimestamp: true,
     },
-    localhost: {
-      url: "http://127.0.0.1:8545",
-      // @ts-ignore
-      timeout: INTEGRATIONTEST_TIMEOUT,
-      ...gasOption,
-    },
+    // localhost: {
+    //   url: "http://127.0.0.1:8545",
+    //   // @ts-ignore
+    //   timeout: INTEGRATIONTEST_TIMEOUT,
+    //   ...gasOption,
+    // },
     sepolia: {
       // url: "https://sepolia.infura.io/v3/" + process.env.INFURA_TOKEN,
       url: "http://192.168.50.18:8545",
@@ -71,7 +72,7 @@ const config: HardhatUserConfig = {
   etherscan: {
     // Your API key for Etherscan
     // Obtain one at https://etherscan.io/
-    apiKey: process.env.ETHERSCAN_TOKEN
+    apiKey: process.env.ETHERSCAN_TOKEN,
   },
   sourcify: {
     enabled: true,
@@ -88,7 +89,7 @@ const config: HardhatUserConfig = {
 };
 
 function getHardhatPrivateKeys() {
-  return privateKeys.map(key => {
+  return privateKeys.map((key) => {
     const TEN_MILLION_ETH = "10000000000000000000000000";
     return {
       privateKey: key,

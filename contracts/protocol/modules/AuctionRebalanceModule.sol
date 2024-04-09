@@ -67,9 +67,8 @@ contract AuctionRebalanceModule is ModuleBase, ReentrancyGuard {
         address[] rebalanceComponents; // List of component tokens involved in the rebalance.
         int256[] rebalanceAmounts; // List of component tokens rebalance amounts, maybe nagtive.
         int256 minBidVirtualAmount; // Minimum sets required for each bid.
-        int256 minTotalAmountsSetsRequire; // Minimum sets required for the corresponding token quantity raised.
         int256 priceSpacing;
-        int256 _minBasePrice; // For internal can be nagtive. Decimal 10**18.
+        int256 minBasePrice; // Can be nagtive. Decimal 10**18.
         // _totalVirtualAmount > VIRTUAL_BASE_AMOUNT: overrecruited.
         int256 _totalVirtualAmount; //  When the bid is not completed, the final total virtual amount. Also save gas.
     }
@@ -167,14 +166,9 @@ contract AuctionRebalanceModule is ModuleBase, ReentrancyGuard {
         info.rebalanceDuration = _rebalanceDuration;
         info.rebalanceComponents = _rebalanceComponents;
         info.rebalanceAmounts = _rebalanceAmounts;
-        info.minTotalAmountsSetsRequire = _targetAmountsSets;
         info.minBidVirtualAmount = _minBidVirtualAmount;
         info.priceSpacing = _priceSpacing;
-
-        int256 minBasePrice = _targetAmountsSets.preciseDiv(
-            VIRTUAL_BASE_AMOUNT
-        );
-        info._minBasePrice = minBasePrice;
+        info.minBasePrice = _targetAmountsSets.preciseDiv(VIRTUAL_BASE_AMOUNT);
         emit AuctionSetuped(address(_setToken), serialId);
     }
 
@@ -391,7 +385,7 @@ contract AuctionRebalanceModule is ModuleBase, ReentrancyGuard {
         require(_tick >= 0, "Tick need be bigger than 0");
         RebalanceInfo memory info = rebalanceInfos[_setToken][_serialId];
         amount = _caculateRequiredOrRewardsSetsAmountsOnTickForBid(
-            info._minBasePrice,
+            info.minBasePrice,
             info.priceSpacing,
             _tick,
             _virtualAmount
@@ -575,7 +569,7 @@ contract AuctionRebalanceModule is ModuleBase, ReentrancyGuard {
             "Virtual quantity not meeting the requirements"
         );
         int256 setsTokenAmountNeeded = _caculateRequiredOrRewardsSetsAmountsOnTickForBid(
-                info._minBasePrice,
+                info.minBasePrice,
                 info.priceSpacing,
                 _tick,
                 _virtualAmount
@@ -601,9 +595,9 @@ contract AuctionRebalanceModule is ModuleBase, ReentrancyGuard {
         (int24 next, bool inited) = tickBitmap.nextInitializedTickWithinOneWord(
             _tick,
             1,
-            false
+            true
         );
-        if (!inited || next != _tick) {
+        if (!(inited && next == _tick)) {
             tickBitmap.flipTick(_tick, 1);
         }
         _updateTotalVirtualAmountsOnTick(
@@ -632,7 +626,7 @@ contract AuctionRebalanceModule is ModuleBase, ReentrancyGuard {
         require(virtualAmount > 0, "There is no corresponding asset");
         RebalanceInfo memory info = rebalanceInfos[_setToken][serialId];
         int256 setsTokenAmountNeeded = _caculateRequiredOrRewardsSetsAmountsOnTickForBid(
-                info._minBasePrice,
+                info.minBasePrice,
                 info.priceSpacing,
                 _tick,
                 virtualAmount
@@ -703,7 +697,7 @@ contract AuctionRebalanceModule is ModuleBase, ReentrancyGuard {
 
         RebalanceInfo memory info = rebalanceInfos[_setToken][_serialId];
         int256 setsTokenAmountNeeded = _caculateRequiredOrRewardsSetsAmountsOnTickForBid(
-                info._minBasePrice,
+                info.minBasePrice,
                 info.priceSpacing,
                 _tick,
                 virtualAmount
@@ -732,7 +726,7 @@ contract AuctionRebalanceModule is ModuleBase, ReentrancyGuard {
 
         RebalanceInfo memory info = rebalanceInfos[_setToken][_serialId];
         int256 setsTokenAmountNeeded = _caculateRequiredOrRewardsSetsAmountsOnTickForBid(
-                info._minBasePrice,
+                info.minBasePrice,
                 info.priceSpacing,
                 _tick,
                 virtualAmount
@@ -759,7 +753,7 @@ contract AuctionRebalanceModule is ModuleBase, ReentrancyGuard {
                 ].preciseMul(virtualAmount);
             }
             int256 ultimatelyConsumedSets = _caculateRequiredOrRewardsSetsAmountsOnTickForBid(
-                    info._minBasePrice,
+                    info.minBasePrice,
                     info.priceSpacing,
                     winTick,
                     biddedVirtualAmount
@@ -912,7 +906,7 @@ contract AuctionRebalanceModule is ModuleBase, ReentrancyGuard {
             }
 
             int256 ultimatelyConsumedSets = _caculateRequiredOrRewardsSetsAmountsOnTickForBid(
-                    info._minBasePrice,
+                    info.minBasePrice,
                     info.priceSpacing,
                     winTick,
                     totalVirtualAmount
@@ -1051,13 +1045,13 @@ contract AuctionRebalanceModule is ModuleBase, ReentrancyGuard {
     }
 
     function _caculateRequiredOrRewardsSetsAmountsOnTickForBid(
-        int256 _minBasePrice,
+        int256 minBasePrice,
         int256 _priceSpacing,
         int24 _tick,
         int256 _virtualAmount
     ) internal pure returns (int256) {
         int256 targetPrice = _caculateTargetPriceWithTick(
-            _minBasePrice,
+            minBasePrice,
             _priceSpacing,
             _tick
         );
@@ -1065,11 +1059,11 @@ contract AuctionRebalanceModule is ModuleBase, ReentrancyGuard {
     }
 
     function _caculateTargetPriceWithTick(
-        int256 _minBasePrice,
+        int256 minBasePrice,
         int256 _priceSpacing,
         int24 _tick
     ) internal pure returns (int256) {
-        return _minBasePrice.add(int256(_tick).mul(_priceSpacing));
+        return minBasePrice.add(int256(_tick).mul(_priceSpacing));
     }
 
     function _updateMaxTick(
