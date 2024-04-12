@@ -362,7 +362,15 @@ contract AuctionRebalanceModule is ModuleBase, ReentrancyGuard {
      * @notice  .
      * @dev     .
      */
-    function removeModule() external override {}
+    function removeModule() external override {
+        ISetToken setToken = ISetToken(msg.sender);
+        uint256 serialId = serialIds[setToken];
+        require(
+            rebalanceInfos[setToken][serialId].status !=
+                RebalanceStatus.PROGRESSING,
+            "Latest bid is progressing"
+        );
+    }
 
     /* ============ External View Functions ============ */
 
