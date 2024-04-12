@@ -421,7 +421,7 @@ contract AuctionRebalanceModule is ModuleBase, ReentrancyGuard {
         amounts = new int256[](componentsLength);
         for (uint256 i = 0; i < componentsLength; i++) {
             int256 amount = rebalanceAmounts[i].preciseMul(_virtualAmount);
-            if (amounts[i] < 0) {
+            if (amount < 0) {
                 amounts[i] = amount.add(-1);
             } else {
                 amounts[i] = amount;
