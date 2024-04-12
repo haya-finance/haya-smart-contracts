@@ -293,7 +293,7 @@ describe("AuctionRebalanceModule", function () {
         )
       ).to.be.fulfilled;
 
-      // tick = 30000, word = 117 |000000...000010|
+      // tick = 30000, word = 117 |000000...1...000000|
       expect(
         await auctionRebalanceModule.read.tickBitmaps([
           setToken.address,
@@ -315,6 +315,7 @@ describe("AuctionRebalanceModule", function () {
         { account: user1.account }
       );
 
+      // test bid event
       const bidEvents = await auctionRebalanceModule.getEvents.Bid();
       expect(bidEvents).to.have.lengthOf(1);
       expect(bidEvents[0].args._setToken).to.be.equal(
@@ -327,7 +328,7 @@ describe("AuctionRebalanceModule", function () {
       expect(bidEvents[0].args._tick).to.be.equal(tick2);
       expect(bidEvents[0].args._virtualAmount).to.be.equal(virtualAmount);
 
-      // tick = 30000, word = 117 |000000...000010|
+      // tick = 30000, word = 117 |000000...1...000000|
       expect(
         await auctionRebalanceModule.read.tickBitmaps([
           setToken.address,
@@ -362,10 +363,50 @@ describe("AuctionRebalanceModule", function () {
         ])
       ).to.be.equal(virtualAmount + virtualAmount);
     });
-    it("Test bid event", async function () {});
   });
   describe("AuctionBalanceModule cancel bid test", function () {
-    it("Test claim time and be set result", async function () {});
+    it("Test claim time", async function () {
+      const { user1, endTime, setToken, auctionRebalanceModule } =
+        await loadFixture(deployUser1BiddedAuctionFixture);
+      await expect(
+        auctionRebalanceModule.write.cancelBid([setToken.address, 1], {
+          account: user1.account,
+        })
+      ).to.be.fulfilled;
+      time.increaseTo(endTime);
+      await expect(
+        auctionRebalanceModule.write.cancelBid([setToken.address, 30000], {
+          account: user1.account,
+        })
+      ).to.be.rejectedWith("Not bidding time");
+    });
+    it("Test auction be set result failed", async function () {
+      const { user1, endTime, manager, setToken, auctionRebalanceModule } =
+        await loadFixture(deployUser1BiddedAuctionFixture);
+      await auctionRebalanceModule.write.setAuctionResultFailed(
+        [setToken.address],
+        { account: manager.account }
+      );
+      await expect(
+        auctionRebalanceModule.write.cancelBid([setToken.address, 30000], {
+          account: user1.account,
+        })
+      ).to.be.rejectedWith("Bid's status must be progressing");
+    });
+    it("Test auction be set result success", async function () {
+      const { user1, endTime, manager, setToken, auctionRebalanceModule } =
+        await loadFixture(deployUser1BiddedAuctionFixture);
+      time.increaseTo(endTime);
+      await auctionRebalanceModule.write.setAuctionResultSuccess(
+        [setToken.address],
+        { account: manager.account }
+      );
+      await expect(
+        auctionRebalanceModule.write.cancelBid([setToken.address, 30000], {
+          account: user1.account,
+        })
+      ).to.be.rejectedWith("Bid's status must be progressing");
+    });
     it("Test no bid to cancel", async function () {});
     it("Test cancel rollback amounts", async function () {});
     it("Test after rollback tickBitmap value, personal tick amounts, total tick amounts", async function () {});
@@ -395,6 +436,90 @@ describe("AuctionRebalanceModule", function () {
     it("Test removed and still can claim", async function () {});
   });
 
+  // bid on tick = 1, tick = 30000
+  async function deployUser1BiddedAuctionFixture() {
+    const {
+      controller,
+      basicIssueModule,
+      auctionRebalanceModule,
+      setToken,
+      owner,
+      manager,
+      publicClient,
+      btcToken,
+      ethToken,
+      usdcToken,
+      user1,
+      user2,
+      startTime,
+      endTime,
+    } = await loadFixture(deploySetupedAuctionFixture);
+    await time.increaseTo(startTime);
+    const beforeSetsBalance = await setToken.read.balanceOf([
+      user1.account.address,
+    ]);
+    const lastestId = await auctionRebalanceModule.read.serialIds([
+      setToken.address,
+    ]);
+    const auctionInfo = await auctionRebalanceModule.read.rebalanceInfos([
+      setToken.address,
+      lastestId,
+    ]);
+    const basePrice = auctionInfo[5];
+    const priceSpacing = auctionInfo[4];
+    const tick = 1;
+    const virtualAmount = eth(0.001).toBigInt();
+    const price = BigInt(tick) * priceSpacing + basePrice;
+    let components =
+      await auctionRebalanceModule.read.getRequiredOrRewardComponentsAndAmountsForBid(
+        [setToken.address, lastestId, virtualAmount]
+      );
+
+    await ethToken.write.mintWithAmount([-components[1][1] + BigInt(1)], {
+      account: user1.account,
+    });
+    await auctionRebalanceModule.write.bid(
+      [setToken.address, tick, virtualAmount],
+      { account: user1.account }
+    );
+    // need pay sets and eth
+    const tick2 = 30000;
+    const price2 = BigInt(tick2) * priceSpacing + basePrice;
+    components =
+      await auctionRebalanceModule.read.getRequiredOrRewardComponentsAndAmountsForBid(
+        [setToken.address, lastestId, virtualAmount]
+      );
+    await ethToken.write.mintWithAmount(
+      [BigInt(2) * (-components[1][1] + BigInt(1))],
+      {
+        account: user1.account,
+      }
+    );
+    await auctionRebalanceModule.write.bid(
+      [setToken.address, tick2, virtualAmount],
+      { account: user1.account }
+    );
+    await auctionRebalanceModule.write.bid(
+      [setToken.address, tick2, virtualAmount],
+      { account: user1.account }
+    );
+    return {
+      controller,
+      basicIssueModule,
+      auctionRebalanceModule,
+      setToken,
+      owner,
+      manager,
+      publicClient,
+      btcToken,
+      ethToken,
+      usdcToken,
+      user1,
+      user2,
+      startTime,
+      endTime,
+    };
+  }
   // btc 100 || eth -1000
   async function deploySetupedAuctionFixture() {
     const {

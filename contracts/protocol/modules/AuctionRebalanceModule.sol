@@ -876,7 +876,7 @@ contract AuctionRebalanceModule is ModuleBase, ReentrancyGuard {
         int24 winTickRecord;
         if (validated) {
             require(
-                info.rebalanceStartTime + info.rebalanceDuration <
+                info.rebalanceStartTime + info.rebalanceDuration <=
                     block.timestamp,
                 "Not excution time"
             );
