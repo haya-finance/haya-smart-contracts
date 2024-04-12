@@ -673,39 +673,52 @@ contract AuctionRebalanceModule is ModuleBase, ReentrancyGuard {
                 info.status == RebalanceStatus.FAILURED,
             "Bid's status must be finished status"
         );
+
+        ValuePosition.Info storage _valuePosition = _valuePositions[_setToken]
+            .get(_serialId, msg.sender, _tick);
+        require(!_valuePosition.claimed, "Already been claimed");
+        int256 virtualAmount = _valuePosition.virtualAmount;
+        require(virtualAmount > 0, "There is no corresponding asset");
+        _valuePosition.claimed = true;
+
         if (info.status == RebalanceStatus.FAILURED) {
-            _bidFailedClaimAllAssets(_setToken, _serialId, msg.sender, _tick);
+            _bidRollbackAllAssets(
+                _setToken,
+                _serialId,
+                msg.sender,
+                _tick,
+                virtualAmount
+            );
         } else if (info.status == RebalanceStatus.SUCCESSED) {
-            _bidSuccessClaimRewards(_setToken, _serialId, msg.sender, _tick);
+            _bidSuccessClaimRewards(
+                _setToken,
+                _serialId,
+                msg.sender,
+                _tick,
+                virtualAmount
+            );
         }
         emit Claim(address(_setToken), msg.sender, _serialId, _tick);
     }
 
-    function _bidFailedClaimAllAssets(
+    function _bidRollbackAllAssets(
         ISetToken _setToken,
         uint256 _serialId,
         address _account,
-        int24 _tick
+        int24 _tick,
+        int256 _virtualAmount
     ) internal {
-        ValuePosition.Info storage _valuePosition = _valuePositions[_setToken]
-            .get(_serialId, _account, _tick);
-        require(!_valuePosition.claimed, "Already been claimed");
-        int256 virtualAmount = _valuePosition.virtualAmount;
-        require(virtualAmount > 0, "There is no corresponding asset");
-
-        _valuePosition.claimed = true;
-
         RebalanceInfo memory info = rebalanceInfos[_setToken][_serialId];
         int256 setsTokenAmountNeeded = _caculateRequiredOrRewardsSetsAmountsOnTickForBid(
                 info.minBasePrice,
                 info.priceSpacing,
                 _tick,
-                virtualAmount
+                _virtualAmount
             );
         _rollbackBidSets(_setToken, _account, setsTokenAmountNeeded);
         _rollbackBidToken(
             _account,
-            virtualAmount,
+            _virtualAmount,
             info.rebalanceComponents,
             info.rebalanceAmounts
         );
@@ -715,21 +728,15 @@ contract AuctionRebalanceModule is ModuleBase, ReentrancyGuard {
         ISetToken _setToken,
         uint256 _serialId,
         address _account,
-        int24 _tick
+        int24 _tick,
+        int256 _virtualAmount
     ) internal {
-        ValuePosition.Info storage _valuePosition = _valuePositions[_setToken]
-            .get(_serialId, _account, _tick);
-        require(!_valuePosition.claimed, "Already been claimed");
-        int256 virtualAmount = _valuePosition.virtualAmount;
-        require(virtualAmount > 0, "There is no corresponding asset");
-        _valuePosition.claimed = true;
-
         RebalanceInfo memory info = rebalanceInfos[_setToken][_serialId];
         int256 setsTokenAmountNeeded = _caculateRequiredOrRewardsSetsAmountsOnTickForBid(
                 info.minBasePrice,
                 info.priceSpacing,
                 _tick,
-                virtualAmount
+                _virtualAmount
             );
         int24 winTick = _winningBidTick[_setToken][_serialId];
 
@@ -738,19 +745,19 @@ contract AuctionRebalanceModule is ModuleBase, ReentrancyGuard {
             _rollbackBidSets(_setToken, _account, setsTokenAmountNeeded);
             _rollbackBidToken(
                 _account,
-                virtualAmount,
+                _virtualAmount,
                 info.rebalanceComponents,
                 info.rebalanceAmounts
             );
         } else {
-            int256 biddedVirtualAmount = virtualAmount;
+            int256 biddedVirtualAmount = _virtualAmount;
             if (
                 info._totalVirtualAmount > VIRTUAL_BASE_AMOUNT &&
                 winTick == _tick
             ) {
                 biddedVirtualAmount = _exactTickAboveGetProportion[_setToken][
                     _serialId
-                ].preciseMul(virtualAmount);
+                ].preciseMul(_virtualAmount);
             }
             int256 ultimatelyConsumedSets = _caculateRequiredOrRewardsSetsAmountsOnTickForBid(
                     info.minBasePrice,
@@ -767,7 +774,7 @@ contract AuctionRebalanceModule is ModuleBase, ReentrancyGuard {
 
             _rollbackBidToken(
                 _account,
-                virtualAmount.sub(biddedVirtualAmount),
+                _virtualAmount.sub(biddedVirtualAmount),
                 info.rebalanceComponents,
                 info.rebalanceAmounts
             );
