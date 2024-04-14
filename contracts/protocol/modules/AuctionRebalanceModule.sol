@@ -541,7 +541,7 @@ contract AuctionRebalanceModule is ModuleBase, ReentrancyGuard {
             int256 lastTickVirtualAmount
         ) = _searchWinningBidTick(_setToken, _serialId);
         int256 exactTickProportion = VIRTUAL_BASE_AMOUNT;
-        if (totalVirtualAmount > VIRTUAL_BASE_AMOUNT) {
+        if (totalVirtualAmount > VIRTUAL_BASE_AMOUNT && winTick == _tick) {
             int256 overBidVirtualAmount = totalVirtualAmount.sub(
                 VIRTUAL_BASE_AMOUNT
             );
@@ -886,7 +886,7 @@ contract AuctionRebalanceModule is ModuleBase, ReentrancyGuard {
         RebalanceInfo storage info = rebalanceInfos[_setToken][serialId];
         require(
             info.status == RebalanceStatus.PROGRESSING,
-            "Bid's status must be progressing"
+            "Auction status must be progressing"
         );
         int24 winTickRecord;
         if (validated) {
