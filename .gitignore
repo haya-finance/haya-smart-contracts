@@ -4,11 +4,11 @@ node_modules
 # Hardhat files
 /cache
 /artifacts
-
+/path
 # TypeChain files
 /typechain
 /typechain-types
-
+.solcx-lock*
 # solidity-coverage files
 /coverage
 /coverage.json

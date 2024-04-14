@@ -333,7 +333,7 @@ contract AuctionRebalanceModule is ModuleBase, ReentrancyGuard {
 
     /**
      * @notice  If you want to start the auction, you need to lock the sets in advance, and unlock them when the auction ends, which needs to be operated by the manager.
-     * @dev     .
+     * @dev     There is no need to check if the previous auction has ended.
      * @param   _setToken  The target sets contract address of the operation..
      */
     function unlock(
@@ -375,9 +375,30 @@ contract AuctionRebalanceModule is ModuleBase, ReentrancyGuard {
     /* ============ External View Functions ============ */
 
     /**
-     * @notice  Get the number of sets or rewards based on the virtual quantity of the target.
+     * @notice  Get the contract address and quantity of the auction.
      * @dev     .
-     * @param   _setToken  The target sets contract address of the operation..
+     * @param   _setToken  The target sets contract address of the operation.
+     * @param   _serialId  The serial number of the auction, in increments.
+     * @return  components  The token address that needs to be auctioned.
+     * @return  amounts  The number of auctions, the positive number is for the tokens sold, and the negative number is the revenue tokens.
+     */
+    function getAuctionComponentsAndAmounts(
+        ISetToken _setToken,
+        uint256 _serialId
+    )
+        external
+        view
+        returns (address[] memory components, int256[] memory amounts)
+    {
+        RebalanceInfo memory info = rebalanceInfos[_setToken][_serialId];
+        components = info.rebalanceComponents;
+        amounts = info.rebalanceAmounts;
+    }
+
+    /**
+     * @notice  Get the number of sets or rewards based on the virtual quantity of the target.
+     * @dev     The specific transfer amount of the user is not recorded, and for the convenience of refund, it has been exchanged, and the user's amount is added by 1 here
+     * @param   _setToken  The target sets contract address of the operation.
      * @param   _serialId  The serial number of the auction, in increments.
      * @param   _tick  The minimum price is used as the criterion to interval the number of spaces.
      * @param   _virtualAmount  The fictitious amount is a proportion, convenient to calculate, and the base is a standard unit.
@@ -405,7 +426,7 @@ contract AuctionRebalanceModule is ModuleBase, ReentrancyGuard {
 
     /**
      * @notice  Get the actual number of auction tokens based on the target virtual quantity.
-     * @dev     .
+     * @dev     The specific transfer amount of the user is not recorded, and for the convenience of refund, it has been exchanged, and the user's amount is added by 1 here
      * @param   _setToken  The target sets contract address of the operation..
      * @param   _serialId  The serial number of the auction, in increments.
      * @param   _virtualAmount  The fictitious amount is a proportion, convenient to calculate, and the base is a standard unit.
@@ -448,6 +469,7 @@ contract AuctionRebalanceModule is ModuleBase, ReentrancyGuard {
         ISetToken _setToken,
         uint256 _serialId
     ) external view returns (int24 winTick) {
+        // not check valid
         winTick = _winningBidTick[_setToken][_serialId];
     }
 
@@ -843,6 +865,7 @@ contract AuctionRebalanceModule is ModuleBase, ReentrancyGuard {
         }
     }
 
+    // The specific transfer amount of the user is not recorded, and for the convenience of refund, it has been exchanged, and the user's amount is added by 1 here
     function _transferBidSets(
         ISetToken _setToken,
         address _account,
@@ -853,7 +876,7 @@ contract AuctionRebalanceModule is ModuleBase, ReentrancyGuard {
                 _setToken,
                 _account,
                 address(this),
-                uint256(_amount).add(1) //trik, Why didn't you choose to subtract one from the time of withdrawal, because it is possible that the user will deposit multiple times, but only once withdraw.
+                uint256(_amount).add(1)
             );
         }
     }
@@ -870,7 +893,7 @@ contract AuctionRebalanceModule is ModuleBase, ReentrancyGuard {
             if (totalAmount < 0) {
                 int256 amount2Transfer = totalAmount
                     .preciseMul(_virtualAmount)
-                    .add(-1); // trik, Why didn't you choose to subtract one from the time of withdrawal, because it is possible that the user will deposit multiple times, but only once withdraw.
+                    .add(-1);
                 transferFrom(
                     IERC20(_components[i]),
                     _account,

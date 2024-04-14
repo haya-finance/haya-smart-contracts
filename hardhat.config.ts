@@ -38,24 +38,8 @@ const config: HardhatUserConfig = {
     ],
   },
   networks: {
-    hardhat: {
-      // forking: process.env.FORK ? forkingConfig : undefined,
-      // accounts: getHardhatPrivateKeys(),
-      // @ts-ignore
-      // timeout: INTEGRATIONTEST_TIMEOUT,
-      // initialBaseFeePerGas: 0,
-      // ...gasOption,
-      // allowBlocksWithSameTimestamp: true,
-    },
-    // localhost: {
-    //   url: "http://127.0.0.1:8545",
-    //   // @ts-ignore
-    //   timeout: INTEGRATIONTEST_TIMEOUT,
-    //   ...gasOption,
-    // },
     sepolia: {
-      // url: "https://sepolia.infura.io/v3/" + process.env.INFURA_TOKEN,
-      url: "http://192.168.50.18:8545",
+      url: "https://sepolia.infura.io/v3/" + process.env.INFURA_TOKEN,
       // @ts-ignore
       accounts: process.env.SEPOLIA_DEPLOY_PRIVATE_KEY
         ? [`0x${process.env.SEPOLIA_DEPLOY_PRIVATE_KEY}`]
