@@ -36,7 +36,7 @@ contract AuctionRebalanceModule is ModuleBase, ReentrancyGuard {
 
     /* ============ Constants ============ */
 
-    int24 internal constant MAXTICK = 3072; // Change 32767 -> 3072, Worst-case calculations: If tick 3072 requires a gas consumption of 12,000,000
+    int24 public constant MAXTICK = 3072; // Change 32767 -> 3072, Worst-case calculations: If tick 3072 requires a gas consumption of 12,000,000
 
     /* ============ Immutable ============ */
     int256 public immutable VIRTUAL_BASE_AMOUNT; // Just base for caculate
