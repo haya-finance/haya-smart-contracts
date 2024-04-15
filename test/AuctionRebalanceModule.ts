@@ -121,21 +121,21 @@ describe("AuctionRebalanceModule", function () {
       });
       await expect(
         auctionRebalanceModule.write.bid(
-          [setToken.address, 0, eth(0.001).toBigInt()],
+          [setToken.address, 0, eth(0.01).toBigInt()],
           { account: user1.account }
         )
       ).to.be.rejectedWith("Not bidding time");
       await time.increaseTo(startTime);
       await expect(
         auctionRebalanceModule.write.bid(
-          [setToken.address, 0, eth(0.001).toBigInt()],
+          [setToken.address, 0, eth(0.01).toBigInt()],
           { account: user1.account }
         )
       ).to.be.fulfilled;
       await time.increaseTo(endTime);
       await expect(
         auctionRebalanceModule.write.bid(
-          [setToken.address, 0, eth(0.001).toBigInt()],
+          [setToken.address, 0, eth(0.01).toBigInt()],
           { account: user1.account }
         )
       ).to.be.rejectedWith("Not bidding time");
@@ -147,19 +147,19 @@ describe("AuctionRebalanceModule", function () {
       await time.increaseTo(startTime);
       await expect(
         auctionRebalanceModule.write.bid(
-          [setToken.address, 0, eth(0.0001).toBigInt()],
+          [setToken.address, 0, eth(0.001).toBigInt()],
           { account: user1.account }
         )
       ).to.be.rejectedWith("Virtual quantity not meeting the requirements");
       await expect(
         auctionRebalanceModule.write.bid(
-          [setToken.address, -1, eth(0.001).toBigInt()],
+          [setToken.address, -1, eth(0.01).toBigInt()],
           { account: user1.account }
         )
       ).to.be.rejectedWith("Tick need be bigger than 0");
       await expect(
         auctionRebalanceModule.write.bid(
-          [setToken.address, 32768, eth(0.001).toBigInt()],
+          [setToken.address, 3073, eth(0.01).toBigInt()],
           { account: user1.account }
         )
       ).to.be.rejectedWith("Tick too big");
@@ -196,7 +196,7 @@ describe("AuctionRebalanceModule", function () {
 
       // need not pay sets but eth
       const tick = 1;
-      const virtualAmount = eth(0.001).toBigInt();
+      const virtualAmount = eth(0.01).toBigInt();
       const price = BigInt(tick) * priceSpacing + basePrice;
       expect(
         await auctionRebalanceModule.read.getRequiredOrRewardsSetsAmountsOnTickForBid(
@@ -272,7 +272,7 @@ describe("AuctionRebalanceModule", function () {
       ).to.be.equal(virtualAmount);
 
       // need pay sets and eth
-      const tick2 = 30000;
+      const tick2 = 3000;
       const price2 = BigInt(tick2) * priceSpacing + basePrice;
 
       expect(
@@ -295,14 +295,16 @@ describe("AuctionRebalanceModule", function () {
         )
       ).to.be.fulfilled;
 
-      // tick = 30000, word = 117 |000000...1...000000|
+      // tick = 3000, word = 11 |000000...1...000000|
       expect(
         await auctionRebalanceModule.read.tickBitmaps([
           setToken.address,
           lastestId,
-          117,
+          11,
         ])
-      ).to.be.equal(BigInt(281474976710656));
+      ).to.be.equal(
+        BigInt(24519928653854221733733552434404946937899825954937634816)
+      );
 
       expect(
         await auctionRebalanceModule.read._maxTicks([
@@ -330,14 +332,16 @@ describe("AuctionRebalanceModule", function () {
       expect(bidEvents[0].args._tick).to.be.equal(tick2);
       expect(bidEvents[0].args._virtualAmount).to.be.equal(virtualAmount);
 
-      // tick = 30000, word = 117 |000000...1...000000|
+      // tick = 3000, word = 11 |000000...1...000000|
       expect(
         await auctionRebalanceModule.read.tickBitmaps([
           setToken.address,
           lastestId,
-          117,
+          11,
         ])
-      ).to.be.equal(BigInt(281474976710656));
+      ).to.be.equal(
+        BigInt(24519928653854221733733552434404946937899825954937634816)
+      );
 
       if (localCaculateSetsAmount(price2, virtualAmount) >= 0) {
         aferSetsAmount -=
@@ -378,7 +382,7 @@ describe("AuctionRebalanceModule", function () {
       ).to.be.fulfilled;
       await time.increaseTo(endTime);
       await expect(
-        auctionRebalanceModule.write.cancelBid([setToken.address, 30000], {
+        auctionRebalanceModule.write.cancelBid([setToken.address, 3000], {
           account: user1.account,
         })
       ).to.be.rejectedWith("Not bidding time");
@@ -392,7 +396,7 @@ describe("AuctionRebalanceModule", function () {
         { account: manager.account }
       );
       await expect(
-        auctionRebalanceModule.write.cancelBid([setToken.address, 30000], {
+        auctionRebalanceModule.write.cancelBid([setToken.address, 3000], {
           account: user1.account,
         })
       ).to.be.rejectedWith("Bid's status must be progressing");
@@ -407,7 +411,7 @@ describe("AuctionRebalanceModule", function () {
         { account: manager.account }
       );
       await expect(
-        auctionRebalanceModule.write.cancelBid([setToken.address, 30000], {
+        auctionRebalanceModule.write.cancelBid([setToken.address, 3000], {
           account: user1.account,
         })
       ).to.be.rejectedWith("Bid's status must be progressing");
@@ -417,7 +421,7 @@ describe("AuctionRebalanceModule", function () {
       const { user2, endTime, manager, setToken, auctionRebalanceModule } =
         await loadFixture(deployUser1BiddedAuctionFixture);
       await expect(
-        auctionRebalanceModule.write.cancelBid([setToken.address, 30000], {
+        auctionRebalanceModule.write.cancelBid([setToken.address, 3000], {
           account: user2.account,
         })
       ).to.be.rejectedWith("There is no corresponding asset");
@@ -432,7 +436,7 @@ describe("AuctionRebalanceModule", function () {
       const beforeSetsBalance = await setToken.read.balanceOf([
         user1.account.address,
       ]);
-      // tick = 1  virtual amount = eth(0.001).toBigInt()
+      // tick = 1  virtual amount = eth(0.01).toBigInt()
       const lastestId = await auctionRebalanceModule.read.serialIds([
         setToken.address,
       ]);
@@ -449,7 +453,7 @@ describe("AuctionRebalanceModule", function () {
 
       // not pay sets but eth
       const tick = 1;
-      const virtualAmount = eth(0.001).toBigInt();
+      const virtualAmount = eth(0.01).toBigInt();
 
       let components =
         await auctionRebalanceModule.read.getRequiredOrRewardComponentsAndAmountsForBid(
@@ -469,7 +473,7 @@ describe("AuctionRebalanceModule", function () {
       ).to.be.equal(beforeSetsBalance);
 
       // paied sets but eth
-      const tick2 = 30000;
+      const tick2 = 3000;
       const price2 = BigInt(tick2) * priceSpacing + basePrice;
 
       const beforeEthBalance2 = await ethToken.read.balanceOf([
@@ -498,7 +502,7 @@ describe("AuctionRebalanceModule", function () {
         setToken.address,
       ]);
       const tick = 1;
-      const virtualAmount = eth(0.001).toBigInt();
+      const virtualAmount = eth(0.01).toBigInt();
       let components =
         await auctionRebalanceModule.read.getRequiredOrRewardComponentsAndAmountsForBid(
           [setToken.address, lastestId, virtualAmount]
@@ -543,7 +547,7 @@ describe("AuctionRebalanceModule", function () {
         ])
       ).to.be.equal(BigInt(2));
 
-      const tick2 = 30000;
+      const tick2 = 3000;
       await auctionRebalanceModule.write.cancelBid([setToken.address, tick2], {
         account: user1.account,
       });
@@ -562,12 +566,12 @@ describe("AuctionRebalanceModule", function () {
           tick2,
         ])
       ).to.be.equal(BigInt(0));
-      // tick = 30000, word = 117 |000000...1...000000|
+      // tick = 3000, word = 11 |000000...1...000000|
       expect(
         await auctionRebalanceModule.read.tickBitmaps([
           setToken.address,
           lastestId,
-          117,
+          11,
         ])
       ).to.be.equal(BigInt(0));
     });
@@ -596,7 +600,7 @@ describe("AuctionRebalanceModule", function () {
         setToken.address,
       ]);
       const tick = 1;
-      const virtualAmount = eth(0.001).toBigInt();
+      const virtualAmount = eth(0.01).toBigInt();
       await auctionRebalanceModule.write.cancelBid([setToken.address, tick], {
         account: user1.account,
       });
@@ -716,22 +720,21 @@ describe("AuctionRebalanceModule", function () {
           lastestId,
         ])
       ).to.be.equal(0);
-      // tick = 0, virtual amount 0.001  tick = 3000, virtual amount 0.002
-      // result mint 0.03 sets, contract sent 0.3 btc receive 3 eth
+      // tick = 0, virtual amount 0.01  tick = 3000, virtual amount 0.02
+      // result mint 0.3 sets, contract sent 3 btc receive 30 eth
       expect(await setToken.read.totalSupply()).to.be.equal(
-        eth(100.03).toBigInt()
+        eth(100.3).toBigInt()
       );
       expect(await btcToken.read.balanceOf([setToken.address])).to.be.equal(
-        btc(99.7).toBigInt()
+        btc(97).toBigInt()
       );
       expect(await ethToken.read.balanceOf([setToken.address])).to.be.equal(
-        eth(1003).toBigInt()
+        eth(1030).toBigInt()
       );
     });
 
     it("Test full bid, win tick, tranfer components amounts, set token inflation coefficient", async function () {
       const {
-        user3,
         endTime,
         setToken,
         ethToken,
@@ -742,7 +745,7 @@ describe("AuctionRebalanceModule", function () {
       const lastestId = await auctionRebalanceModule.read.serialIds([
         setToken.address,
       ]);
-      const winTick = 5000;
+      const winTick = 500;
       const componentsInfo =
         await auctionRebalanceModule.read.getAuctionComponentsAndAmounts([
           setToken.address,
@@ -786,7 +789,7 @@ describe("AuctionRebalanceModule", function () {
         auctionRebalanceModule.address,
       ]);
       const tick = winTick;
-      const price = BigInt(tick) * eth(0.001).toBigInt() + eth(-10).toBigInt();
+      const price = BigInt(tick) * eth(0.01).toBigInt() + eth(-10).toBigInt();
       const rollsetsPaid = localCaculateSetsAmount(price, eth(1).toBigInt());
       expect(raiseEthAmount).to.be.equal(beforeEthAmount - afterEthAmount);
       expect(saleBtcAmount).to.be.equal(afterBtcAmount - beforeBtcAmount);
@@ -975,8 +978,8 @@ describe("AuctionRebalanceModule", function () {
         }
       );
       let tick = 1;
-      // virtual amount 0.001
-      // tick 0 rollback 0 sets 1 eth
+      // virtual amount 0.01
+      // tick 0 rollback 0 sets 10 eth
       let beforeEth = await ethToken.read.balanceOf([user1.account.address]);
       let beforeSets = await setToken.read.balanceOf([user1.account.address]);
       await expect(
@@ -989,17 +992,17 @@ describe("AuctionRebalanceModule", function () {
       ).to.be.fulfilled;
       expect(
         await ethToken.read.balanceOf([user1.account.address])
-      ).to.be.equal(beforeEth + eth(1).toBigInt());
+      ).to.be.equal(beforeEth + eth(10).toBigInt());
       expect(
         await setToken.read.balanceOf([user1.account.address])
       ).to.be.equal(beforeSets);
 
-      // virtual amount 0.002
-      // tick 30000 rollback ? sets 2 eth
-      tick = 30000;
-      const price = BigInt(tick) * eth(0.001).toBigInt() + eth(-10).toBigInt();
+      // virtual amount 0.02
+      // tick 3000 rollback ? sets 2 eth
+      tick = 3000;
+      const price = BigInt(tick) * eth(0.01).toBigInt() + eth(-10).toBigInt();
       const rollsetsPaid =
-        localCaculateSetsAmount(price, eth(0.002).toBigInt()) - BigInt(1);
+        localCaculateSetsAmount(price, eth(0.02).toBigInt()) - BigInt(1);
       beforeEth = await ethToken.read.balanceOf([user1.account.address]);
       beforeSets = await setToken.read.balanceOf([user1.account.address]);
       await expect(
@@ -1012,7 +1015,7 @@ describe("AuctionRebalanceModule", function () {
       ).to.be.fulfilled;
       expect(
         await ethToken.read.balanceOf([user1.account.address])
-      ).to.be.equal(beforeEth + eth(2).toBigInt());
+      ).to.be.equal(beforeEth + eth(20).toBigInt());
       expect(
         await setToken.read.balanceOf([user1.account.address])
       ).to.be.equal(beforeSets + rollsetsPaid);
@@ -1058,7 +1061,7 @@ describe("AuctionRebalanceModule", function () {
     });
 
     it("Test win the bid to claim, on win tick, check amounts", async function () {
-      // claim user3 tick = 10000(win 20%)
+      // claim user3 tick = 1000(win 20%)
       const {
         user3,
         endTime,
@@ -1076,14 +1079,14 @@ describe("AuctionRebalanceModule", function () {
           setToken.address,
           lastestId,
         ])
-      ).to.be.equal(30000);
+      ).to.be.equal(3000);
 
       expect(
         await auctionRebalanceModule.read.getActualBiddedVirtualAmount([
           setToken.address,
           lastestId,
           user3.account.address,
-          10000,
+          1000,
         ])
       ).to.be.equal(eth(0.08).toBigInt());
       await time.increaseTo(endTime);
@@ -1098,10 +1101,10 @@ describe("AuctionRebalanceModule", function () {
           setToken.address,
           lastestId,
         ])
-      ).to.be.equal(10000);
-      const tick = 10000;
+      ).to.be.equal(1000);
+      const tick = 1000;
       const virtualAmount = eth(0.4).toBigInt();
-      const price = BigInt(tick) * eth(0.001).toBigInt() + eth(-10).toBigInt();
+      const price = BigInt(tick) * eth(0.01).toBigInt() + eth(-10).toBigInt();
 
       localCaculateSetsAmount(price, virtualAmount) - BigInt(1);
       const rollsetsPaid =
@@ -1125,7 +1128,7 @@ describe("AuctionRebalanceModule", function () {
       ).to.be.equal(beforeSets + rollsetsPaid);
     });
     it("Test win the bid and bigger than win tick, check amounts", async function () {
-      // claim user3 tick = 20000(full)
+      // claim user3 tick = 2000(full)
       const {
         user3,
         endTime,
@@ -1143,7 +1146,7 @@ describe("AuctionRebalanceModule", function () {
           setToken.address,
           lastestId,
           user3.account.address,
-          20000,
+          2000,
         ])
       ).to.be.equal(eth(0.7).toBigInt());
       await time.increaseTo(endTime);
@@ -1153,12 +1156,12 @@ describe("AuctionRebalanceModule", function () {
           account: manager.account,
         }
       );
-      const tick = 20000;
-      const winTick = 10000;
+      const tick = 2000;
+      const winTick = 1000;
       const virtualAmount = eth(0.7).toBigInt();
-      const price = BigInt(tick) * eth(0.001).toBigInt() + eth(-10).toBigInt();
+      const price = BigInt(tick) * eth(0.01).toBigInt() + eth(-10).toBigInt();
       const winPrice =
-        BigInt(winTick) * eth(0.001).toBigInt() + eth(-10).toBigInt();
+        BigInt(winTick) * eth(0.01).toBigInt() + eth(-10).toBigInt();
 
       const rollbackSets =
         (virtualAmount * (price - winPrice)) / eth(1).toBigInt();
@@ -1324,12 +1327,70 @@ describe("AuctionRebalanceModule", function () {
     });
   });
 
-  // bid on tick 0 ,1, 5000, 20000, 30000,
+  describe("AuctionBalanceModule set success result gas limit test", function () {
+    it("Test gas limit", async function () {
+      const {
+        auctionRebalanceModule,
+        setToken,
+        manager,
+        user1,
+        btcToken,
+        ethToken,
+      } = await loadFixture(deployIssuedSetsAuctionRebalanceModuleFixture);
+
+      const startTime = BigInt(await time.latest());
+      const endTime = startTime + BigInt(ONE_WEEK_IN_SECS);
+
+      await auctionRebalanceModule.write.setupAuction(
+        [
+          setToken.address,
+          [btcToken.address, ethToken.address],
+          [btc(1).toBigInt(), eth(1).toBigInt()],
+          startTime,
+          BigInt(ONE_WEEK_IN_SECS),
+          eth(1).toBigInt(),
+          eth(0.0001).toBigInt(),
+          eth(0.0001).toBigInt(),
+        ],
+        { account: manager.account }
+      );
+      await setToken.write.approve(
+        [auctionRebalanceModule.address, MAX_UINT_256.toBigInt()],
+        { account: user1.account }
+      );
+      const lastestId = await auctionRebalanceModule.read.serialIds([
+        setToken.address,
+      ]);
+      let num: number = 3000;
+      let i: number;
+      for (i = 50; i < num; i++) {
+        await auctionRebalanceModule.write.bid(
+          [setToken.address, i, eth(0.0003).toBigInt()],
+          { account: user1.account }
+        );
+      }
+      await time.increaseTo(endTime);
+      await expect(
+        auctionRebalanceModule.write.setAuctionResultSuccess(
+          [setToken.address],
+          { account: manager.account, gas: BigInt(12000000) }
+        )
+      ).to.be.fulfilled;
+      expect(
+        await auctionRebalanceModule.read.getFinalWinningTick([
+          setToken.address,
+          BigInt(1),
+        ])
+      ).to.be.equal(0);
+    });
+  });
+
+  // bid on tick 0 ,1, 500, 2000, 3000,
   // bid 8 times
-  // user1 tick=0 virtual=0.001, tick=30000 virtual=0.001, tick=30000 virtual=0.001
-  // user2 tick=1 virtual=0.01, tick=5000 virtual=0.1, tick=30000 virtual=0.198
-  // user3 tick=5000 virtual=0.4, tick=20000, virtual=0.7
-  // win bid 5000, on tick 5000 win 20%
+  // user1 tick=0 virtual=0.01, tick=300 virtual=0.01, tick=3000 virtual=0.01
+  // user2 tick=1 virtual=0.01, tick=500 virtual=0.1, tick=3000 virtual=0.18
+  // user3 tick=500 virtual=0.4, tick=2000, virtual=0.7
+  // win bid 500, on tick 500 win 20%
   async function deployFullBiddedSetsSendAuctionFixture() {
     const {
       controller,
@@ -1398,15 +1459,15 @@ describe("AuctionRebalanceModule", function () {
     await auctionRebalanceModule.write.batchBid(
       [
         setToken.address,
-        [1, 5000, 30000],
-        [eth(0.01).toBigInt(), eth(0.1).toBigInt(), eth(0.198).toBigInt()],
+        [1, 500, 3000],
+        [eth(0.01).toBigInt(), eth(0.1).toBigInt(), eth(0.18).toBigInt()],
       ],
       { account: user2.account }
     );
     await auctionRebalanceModule.write.batchBid(
       [
         setToken.address,
-        [5000, 20000],
+        [500, 2000],
         [eth(0.4).toBigInt(), eth(0.7).toBigInt()],
       ],
       { account: user3.account }
@@ -1430,12 +1491,12 @@ describe("AuctionRebalanceModule", function () {
     };
   }
 
-  // bid on tick 0 ,1, 10000, 20000, 30000,
+  // bid on tick 0 ,1, 1000, 2000, 3000,
 
-  // user1 tick=0 virtual=0.001, tick=30000 virtual=0.002
-  // user2 tick=1 virtual=0.01, tick=10000 virtual=0.1, tick=30000 virtual=0.198
-  // user3 tick=10000 virtual=0.4, tick=20000, virtual=0.7
-  // win bid 10000, on tick 10000 win 20%
+  // user1 tick=0 virtual=0.01, tick=3000 virtual=0.02
+  // user2 tick=1 virtual=0.01, tick=1000 virtual=0.1, tick=3000 virtual=0.18
+  // user3 tick=1000 virtual=0.4, tick=2000, virtual=0.7
+  // win bid 1000, on tick 1000 win 20%
   async function deployFullBiddedNoSetsAuctionFixture() {
     const {
       controller,
@@ -1504,15 +1565,15 @@ describe("AuctionRebalanceModule", function () {
     await auctionRebalanceModule.write.batchBid(
       [
         setToken.address,
-        [1, 10000, 30000],
-        [eth(0.01).toBigInt(), eth(0.1).toBigInt(), eth(0.198).toBigInt()],
+        [1, 1000, 3000],
+        [eth(0.01).toBigInt(), eth(0.1).toBigInt(), eth(0.18).toBigInt()],
       ],
       { account: user2.account }
     );
     await auctionRebalanceModule.write.batchBid(
       [
         setToken.address,
-        [10000, 20000],
+        [1000, 2000],
         [eth(0.4).toBigInt(), eth(0.7).toBigInt()],
       ],
       { account: user3.account }
@@ -1536,7 +1597,7 @@ describe("AuctionRebalanceModule", function () {
     };
   }
 
-  // bid on tick = 1, tick = 30000
+  // bid on tick = 1, tick = 3000
   async function deployUser1BiddedAuctionFixture() {
     const {
       controller,
@@ -1566,7 +1627,7 @@ describe("AuctionRebalanceModule", function () {
     const basePrice = auctionInfo[5];
     const priceSpacing = auctionInfo[4];
     const tick = 1;
-    const virtualAmount = eth(0.001).toBigInt();
+    const virtualAmount = eth(0.01).toBigInt();
     const price = BigInt(tick) * priceSpacing + basePrice;
     let components =
       await auctionRebalanceModule.read.getRequiredOrRewardComponentsAndAmountsForBid(
@@ -1581,7 +1642,7 @@ describe("AuctionRebalanceModule", function () {
       { account: user1.account }
     );
     // need pay sets and eth
-    const tick2 = 30000;
+    const tick2 = 3000;
     const price2 = BigInt(tick2) * priceSpacing + basePrice;
     components =
       await auctionRebalanceModule.read.getRequiredOrRewardComponentsAndAmountsForBid(
@@ -1653,8 +1714,8 @@ describe("AuctionRebalanceModule", function () {
         startTime,
         BigInt(ONE_WEEK_IN_SECS),
         eth(0).toBigInt(),
-        eth(0.001).toBigInt(),
-        eth(0.001).toBigInt(),
+        eth(0.01).toBigInt(),
+        eth(0.01).toBigInt(),
       ],
       { account: manager.account }
     );
@@ -1713,8 +1774,8 @@ describe("AuctionRebalanceModule", function () {
         startTime,
         BigInt(ONE_WEEK_IN_SECS),
         eth(-10).toBigInt(),
-        eth(0.001).toBigInt(),
-        eth(0.001).toBigInt(),
+        eth(0.01).toBigInt(),
+        eth(0.01).toBigInt(),
       ],
       { account: manager.account }
     );

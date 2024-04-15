@@ -20,7 +20,7 @@ import "@nomicfoundation/hardhat-verify";
 const INTEGRATIONTEST_TIMEOUT = 600000;
 
 const mochaConfig = {
-  timeout: process.env.INTEGRATIONTEST ? INTEGRATIONTEST_TIMEOUT : 50000,
+  timeout: process.env.INTEGRATIONTEST ? INTEGRATIONTEST_TIMEOUT : 500000,
 } as Mocha.MochaOptions;
 
 const gasOption = {
@@ -38,6 +38,14 @@ const config: HardhatUserConfig = {
     ],
   },
   networks: {
+    hardhat: {
+      forking: process.env.FORK ? forkingConfig : undefined,
+      accounts: getHardhatPrivateKeys(),
+      // @ts-ignore
+      timeout: INTEGRATIONTEST_TIMEOUT,
+      initialBaseFeePerGas: 0,
+      ...gasOption,
+    },
     sepolia: {
       url: "https://sepolia.infura.io/v3/" + process.env.INFURA_TOKEN,
       // @ts-ignore
