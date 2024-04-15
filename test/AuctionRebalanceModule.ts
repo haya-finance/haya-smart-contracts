@@ -239,11 +239,7 @@ describe("AuctionRebalanceModule", function () {
           lastestId,
         ])
       ).to.be.equal(tick);
-      const bitmap = await auctionRebalanceModule.read.tickBitmaps([
-        setToken.address,
-        lastestId,
-        0,
-      ]);
+
       // tick = 1, word = 0 |000000...000010|
       expect(
         await auctionRebalanceModule.read.tickBitmaps([
@@ -295,16 +291,16 @@ describe("AuctionRebalanceModule", function () {
         )
       ).to.be.fulfilled;
 
-      // tick = 3000, word = 11 |000000...1...000000|
+      // tick = 3000, word = 11 |1...000000(total 184 zero)|
+      const bitPos = 3000 % 256;
+      const position: bigint = BigInt(1) << BigInt(bitPos);
       expect(
         await auctionRebalanceModule.read.tickBitmaps([
           setToken.address,
           lastestId,
           11,
         ])
-      ).to.be.equal(
-        BigInt(24519928653854221733733552434404946937899825954937634816)
-      );
+      ).to.be.equal(position);
 
       expect(
         await auctionRebalanceModule.read._maxTicks([
@@ -339,9 +335,7 @@ describe("AuctionRebalanceModule", function () {
           lastestId,
           11,
         ])
-      ).to.be.equal(
-        BigInt(24519928653854221733733552434404946937899825954937634816)
-      );
+      ).to.be.equal(position);
 
       if (localCaculateSetsAmount(price2, virtualAmount) >= 0) {
         aferSetsAmount -=
