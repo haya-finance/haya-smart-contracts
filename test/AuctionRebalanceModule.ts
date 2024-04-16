@@ -1099,8 +1099,346 @@ describe("AuctionRebalanceModule", function () {
         await setToken.read.balanceOf([user2.account.address])
       ).to.be.equal(beforeSets);
     });
-    it("Test bidder no pay sets, bidder pay sets on win tick and win price < 0", async function () {});
-    it("Test bidder pay sets, on win tick and win price > 0", async function () {});
+    it("Test bidder no pay sets, bidder pay sets on win tick and win price < 0", async function () {
+      // win tick 500, on tick virtual amount 0.3, proportion 2/3 = 0.666666...
+      // user1 tick (500, 0.1) # (600, 0.1) # (1500, 0.1)
+      // user1 tick (500, 0.2) # (600, 0.3) # (1500, 0.3)
+      const {
+        auctionRebalanceModule,
+        setToken,
+        manager,
+        btcToken,
+        ethToken,
+        user1,
+        user2,
+        startTime,
+        endTime,
+      } = await loadFixture(deploySetupedAuctionFixture);
+      const lastestId = await auctionRebalanceModule.read.serialIds([
+        setToken.address,
+      ]);
+      await time.increaseTo(startTime);
+      await ethToken.write.mintWithAmount([eth(100000).toBigInt()], {
+        account: user1.account,
+      });
+      await ethToken.write.mintWithAmount([eth(100000).toBigInt()], {
+        account: user2.account,
+      });
+      await setToken.write.transfer(
+        [user2.account.address, eth(50).toBigInt()],
+        { account: user1.account }
+      );
+      await auctionRebalanceModule.write.batchBid(
+        [
+          setToken.address,
+          [500, 600, 1500],
+          [eth(0.1).toBigInt(), eth(0.1).toBigInt(), eth(0.1).toBigInt()],
+        ],
+        { account: user1.account }
+      );
+      await auctionRebalanceModule.write.batchBid(
+        [
+          setToken.address,
+          [500, 600, 1500],
+          [eth(0.2).toBigInt(), eth(0.3).toBigInt(), eth(0.3).toBigInt()],
+        ],
+        { account: user2.account }
+      );
+      await time.increaseTo(endTime);
+      await auctionRebalanceModule.write.setAuctionResultSuccess(
+        [setToken.address],
+        { account: manager.account }
+      );
+      let user1SetsBalance = await setToken.read.balanceOf([
+        user1.account.address,
+      ]);
+      let user1ETHsBalance = await ethToken.read.balanceOf([
+        user1.account.address,
+      ]);
+      let user1BTCBalance = await btcToken.read.balanceOf([
+        user1.account.address,
+      ]);
+
+      let winTick = 500;
+      const proportion =
+        (eth(2).toBigInt() * eth(1).toBigInt()) / eth(3).toBigInt();
+      const basePrice = eth(-10).toBigInt();
+      const priceSpacing = eth(0.01).toBigInt();
+      let virtualAmount = eth(0.1).toBigInt();
+      let tick = 500;
+      let price = basePrice + BigInt(tick) * priceSpacing;
+      let biddedVirtualAmount =
+        (proportion * virtualAmount) / eth(1).toBigInt();
+      let setsTokenAmountNeeded = localCaculateSetsAmount(price, virtualAmount);
+      let finalRollbackBidSetsAmount = -(
+        (setsTokenAmountNeeded * proportion) /
+        eth(1).toBigInt()
+      );
+      let finalRollbackBidTokenAmount =
+        ((virtualAmount - biddedVirtualAmount - BigInt(1)) *
+          eth(1000).toBigInt()) /
+        eth(1).toBigInt();
+      let finalRewardBTCAmount =
+        (biddedVirtualAmount * btc(100).toBigInt()) / eth(1).toBigInt();
+      await auctionRebalanceModule.write.claim(
+        [setToken.address, lastestId, tick],
+        { account: user1.account }
+      );
+      let user1SetsBalanceAfter = await setToken.read.balanceOf([
+        user1.account.address,
+      ]);
+      let user1ETHsBalanceAfter = await ethToken.read.balanceOf([
+        user1.account.address,
+      ]);
+      let user1BTCBalanceAfter = await btcToken.read.balanceOf([
+        user1.account.address,
+      ]);
+
+      expect(user1SetsBalanceAfter).to.be.equal(
+        user1SetsBalance + finalRollbackBidSetsAmount
+      );
+      expect(user1ETHsBalanceAfter).to.be.equal(
+        user1ETHsBalance + finalRollbackBidTokenAmount
+      );
+      expect(user1BTCBalanceAfter).to.be.equal(
+        user1BTCBalance + finalRewardBTCAmount
+      );
+
+      virtualAmount = eth(0.1).toBigInt();
+      tick = 600;
+
+      price = basePrice + BigInt(tick) * priceSpacing;
+      let winPrice = basePrice + BigInt(winTick) * priceSpacing;
+      biddedVirtualAmount = virtualAmount;
+      let winsetsTokenAmountNeeded = localCaculateSetsAmount(
+        winPrice,
+        virtualAmount
+      );
+      setsTokenAmountNeeded = localCaculateSetsAmount(price, virtualAmount);
+      // price < 0
+      finalRollbackBidSetsAmount =
+        setsTokenAmountNeeded - winsetsTokenAmountNeeded;
+      if (price < 0) {
+        finalRollbackBidSetsAmount -= setsTokenAmountNeeded;
+      }
+      finalRewardBTCAmount =
+        (biddedVirtualAmount * btc(100).toBigInt()) / eth(1).toBigInt();
+      await auctionRebalanceModule.write.claim(
+        [setToken.address, lastestId, tick],
+        { account: user1.account }
+      );
+      user1BTCBalance = user1BTCBalanceAfter;
+      user1ETHsBalance = user1ETHsBalanceAfter;
+      user1SetsBalance = user1SetsBalanceAfter;
+      user1SetsBalanceAfter = await setToken.read.balanceOf([
+        user1.account.address,
+      ]);
+      user1ETHsBalanceAfter = await ethToken.read.balanceOf([
+        user1.account.address,
+      ]);
+      user1BTCBalanceAfter = await btcToken.read.balanceOf([
+        user1.account.address,
+      ]);
+
+      expect(user1SetsBalanceAfter).to.be.equal(
+        user1SetsBalance + finalRollbackBidSetsAmount
+      );
+      expect(user1ETHsBalanceAfter).to.be.equal(user1ETHsBalance);
+      expect(user1BTCBalanceAfter).to.be.equal(
+        user1BTCBalance + finalRewardBTCAmount
+      );
+      await auctionRebalanceModule.write.batchClaim(
+        [setToken.address, [lastestId], [1500]],
+        { account: user1.account }
+      );
+      await auctionRebalanceModule.write.batchClaim(
+        [setToken.address, [lastestId, lastestId, lastestId], [500, 600, 1500]],
+        { account: user2.account }
+      );
+      const poolSetsBalance = await setToken.read.balanceOf([
+        auctionRebalanceModule.address,
+      ]);
+      const poolETHsBalance = await ethToken.read.balanceOf([
+        auctionRebalanceModule.address,
+      ]);
+      const poolBTCBalance = await btcToken.read.balanceOf([
+        auctionRebalanceModule.address,
+      ]);
+      // There will be a surplus that cannot be evenly distributed completely
+      expect(poolSetsBalance).to.be.equal(BigInt(1));
+      expect(poolETHsBalance).to.be.equal(BigInt(1000));
+      expect(poolBTCBalance).to.be.equal(BigInt(1));
+    });
+    it("Test bidder pay sets, on win tick and win price > 0", async function () {
+      // win tick 1500, on tick virtual amount 0.3, proportion 1/3 = 0.33333...
+      // user1 tick (1500, 0.1) # (2000, 0.1) # (3000, 0.1)
+      // user1 tick (1500, 0.2) # (2000, 0.4) # (3000, 0.3)
+      const {
+        auctionRebalanceModule,
+        setToken,
+        manager,
+        btcToken,
+        ethToken,
+        user1,
+        user2,
+        startTime,
+        endTime,
+      } = await loadFixture(deploySetupedAuctionFixture);
+      const lastestId = await auctionRebalanceModule.read.serialIds([
+        setToken.address,
+      ]);
+      await time.increaseTo(startTime);
+      await ethToken.write.mintWithAmount([eth(100000).toBigInt()], {
+        account: user1.account,
+      });
+      await ethToken.write.mintWithAmount([eth(100000).toBigInt()], {
+        account: user2.account,
+      });
+      await setToken.write.transfer(
+        [user2.account.address, eth(50).toBigInt()],
+        { account: user1.account }
+      );
+      await auctionRebalanceModule.write.batchBid(
+        [
+          setToken.address,
+          [1500, 2000, 3000],
+          [eth(0.1).toBigInt(), eth(0.1).toBigInt(), eth(0.1).toBigInt()],
+        ],
+        { account: user1.account }
+      );
+      await auctionRebalanceModule.write.batchBid(
+        [
+          setToken.address,
+          [1500, 2000, 3000],
+          [eth(0.2).toBigInt(), eth(0.4).toBigInt(), eth(0.3).toBigInt()],
+        ],
+        { account: user2.account }
+      );
+      await time.increaseTo(endTime);
+      await auctionRebalanceModule.write.setAuctionResultSuccess(
+        [setToken.address],
+        { account: manager.account }
+      );
+      let user1SetsBalance = await setToken.read.balanceOf([
+        user1.account.address,
+      ]);
+      let user1ETHsBalance = await ethToken.read.balanceOf([
+        user1.account.address,
+      ]);
+      let user1BTCBalance = await btcToken.read.balanceOf([
+        user1.account.address,
+      ]);
+      const winTick = 1500;
+      const proportion =
+        (eth(1).toBigInt() * eth(1).toBigInt()) / eth(3).toBigInt();
+      const basePrice = eth(-10).toBigInt();
+      const priceSpacing = eth(0.01).toBigInt();
+      let virtualAmount = eth(0.1).toBigInt();
+      let tick = 1500;
+      let price = basePrice + BigInt(tick) * priceSpacing;
+      let biddedVirtualAmount =
+        (proportion * virtualAmount) / eth(1).toBigInt();
+      let setsTokenAmountNeeded = localCaculateSetsAmount(price, virtualAmount);
+      let finalRollbackBidSetsAmount =
+        setsTokenAmountNeeded -
+        (setsTokenAmountNeeded * proportion) / eth(1).toBigInt() -
+        BigInt(1);
+      let finalRollbackBidTokenAmount =
+        ((virtualAmount - biddedVirtualAmount - BigInt(1)) *
+          eth(1000).toBigInt()) /
+        eth(1).toBigInt();
+      let finalRewardBTCAmount =
+        (biddedVirtualAmount * btc(100).toBigInt()) / eth(1).toBigInt();
+      await auctionRebalanceModule.write.claim(
+        [setToken.address, lastestId, tick],
+        { account: user1.account }
+      );
+      let user1SetsBalanceAfter = await setToken.read.balanceOf([
+        user1.account.address,
+      ]);
+      let user1ETHsBalanceAfter = await ethToken.read.balanceOf([
+        user1.account.address,
+      ]);
+      let user1BTCBalanceAfter = await btcToken.read.balanceOf([
+        user1.account.address,
+      ]);
+
+      expect(user1SetsBalanceAfter).to.be.equal(
+        user1SetsBalance + finalRollbackBidSetsAmount
+      );
+      expect(user1ETHsBalanceAfter).to.be.equal(
+        user1ETHsBalance + finalRollbackBidTokenAmount
+      );
+      expect(user1BTCBalanceAfter).to.be.equal(
+        user1BTCBalance + finalRewardBTCAmount
+      );
+
+      virtualAmount = eth(0.1).toBigInt();
+      tick = 2000;
+
+      price = basePrice + BigInt(tick) * priceSpacing;
+      let winPrice = basePrice + BigInt(winTick) * priceSpacing;
+      biddedVirtualAmount = virtualAmount;
+      let winsetsTokenAmountNeeded = localCaculateSetsAmount(
+        winPrice,
+        virtualAmount
+      );
+      setsTokenAmountNeeded = localCaculateSetsAmount(price, virtualAmount);
+      // price > 0
+      finalRollbackBidSetsAmount =
+        setsTokenAmountNeeded - winsetsTokenAmountNeeded;
+      finalRewardBTCAmount =
+        (biddedVirtualAmount * btc(100).toBigInt()) / eth(1).toBigInt();
+      await auctionRebalanceModule.write.claim(
+        [setToken.address, lastestId, tick],
+        { account: user1.account }
+      );
+      user1BTCBalance = user1BTCBalanceAfter;
+      user1ETHsBalance = user1ETHsBalanceAfter;
+      user1SetsBalance = user1SetsBalanceAfter;
+      user1SetsBalanceAfter = await setToken.read.balanceOf([
+        user1.account.address,
+      ]);
+      user1ETHsBalanceAfter = await ethToken.read.balanceOf([
+        user1.account.address,
+      ]);
+      user1BTCBalanceAfter = await btcToken.read.balanceOf([
+        user1.account.address,
+      ]);
+
+      expect(user1SetsBalanceAfter).to.be.equal(
+        user1SetsBalance + finalRollbackBidSetsAmount
+      );
+      expect(user1ETHsBalanceAfter).to.be.equal(user1ETHsBalance);
+      expect(user1BTCBalanceAfter).to.be.equal(
+        user1BTCBalance + finalRewardBTCAmount
+      );
+      await auctionRebalanceModule.write.batchClaim(
+        [setToken.address, [lastestId], [3000]],
+        { account: user1.account }
+      );
+      await auctionRebalanceModule.write.batchClaim(
+        [
+          setToken.address,
+          [lastestId, lastestId, lastestId],
+          [1500, 2000, 3000],
+        ],
+        { account: user2.account }
+      );
+      const poolSetsBalance = await setToken.read.balanceOf([
+        auctionRebalanceModule.address,
+      ]);
+      const poolETHsBalance = await ethToken.read.balanceOf([
+        auctionRebalanceModule.address,
+      ]);
+      const poolBTCBalance = await btcToken.read.balanceOf([
+        auctionRebalanceModule.address,
+      ]);
+      // There will be a surplus that cannot be evenly distributed completely
+      expect(poolSetsBalance).to.be.equal(BigInt(1));
+      expect(poolETHsBalance).to.be.equal(BigInt(1000));
+      expect(poolBTCBalance).to.be.equal(BigInt(1));
+    });
     it("Test not pay sets, win the bid to claim, on win tick and win price = 0, check amounts", async function () {
       // claim user3 tick = 1000(win 20%)
       const {
@@ -1377,64 +1715,64 @@ describe("AuctionRebalanceModule", function () {
     });
   });
 
-  // describe("AuctionBalanceModule set success result gas limit test", function () {
-  //   it("Test gas limit", async function () {
-  //     const {
-  //       auctionRebalanceModule,
-  //       setToken,
-  //       manager,
-  //       user1,
-  //       btcToken,
-  //       ethToken,
-  //     } = await loadFixture(deployIssuedSetsAuctionRebalanceModuleFixture);
+  describe("AuctionBalanceModule set success result gas limit test", function () {
+    it("Test gas limit", async function () {
+      const {
+        auctionRebalanceModule,
+        setToken,
+        manager,
+        user1,
+        btcToken,
+        ethToken,
+      } = await loadFixture(deployIssuedSetsAuctionRebalanceModuleFixture);
 
-  //     const startTime = BigInt(await time.latest());
-  //     const endTime = startTime + BigInt(ONE_WEEK_IN_SECS);
+      const startTime = BigInt(await time.latest());
+      const endTime = startTime + BigInt(ONE_WEEK_IN_SECS);
 
-  //     await auctionRebalanceModule.write.setupAuction(
-  //       [
-  //         setToken.address,
-  //         [btcToken.address, ethToken.address],
-  //         [btc(1).toBigInt(), eth(1).toBigInt()],
-  //         startTime,
-  //         BigInt(ONE_WEEK_IN_SECS),
-  //         eth(1).toBigInt(),
-  //         eth(0.0001).toBigInt(),
-  //         eth(0.0001).toBigInt(),
-  //         3000,
-  //       ],
-  //       { account: manager.account }
-  //     );
-  //     await setToken.write.approve(
-  //       [auctionRebalanceModule.address, MAX_UINT_256.toBigInt()],
-  //       { account: user1.account }
-  //     );
-  //     const lastestId = await auctionRebalanceModule.read.serialIds([
-  //       setToken.address,
-  //     ]);
-  //     let num: number = 3000;
-  //     let i: number;
-  //     for (i = 50; i < num; i++) {
-  //       await auctionRebalanceModule.write.bid(
-  //         [setToken.address, i, eth(0.0003).toBigInt()],
-  //         { account: user1.account }
-  //       );
-  //     }
-  //     await time.increaseTo(endTime);
-  //     await expect(
-  //       auctionRebalanceModule.write.setAuctionResultSuccess(
-  //         [setToken.address],
-  //         { account: manager.account, gas: BigInt(12000000) }
-  //       )
-  //     ).to.be.fulfilled;
-  //     expect(
-  //       await auctionRebalanceModule.read.getFinalWinningTick([
-  //         setToken.address,
-  //         BigInt(1),
-  //       ])
-  //     ).to.be.equal(0);
-  //   });
-  // });
+      await auctionRebalanceModule.write.setupAuction(
+        [
+          setToken.address,
+          [btcToken.address, ethToken.address],
+          [btc(1).toBigInt(), eth(1).toBigInt()],
+          startTime,
+          BigInt(ONE_WEEK_IN_SECS),
+          eth(1).toBigInt(),
+          eth(0.0001).toBigInt(),
+          eth(0.0001).toBigInt(),
+          3000,
+        ],
+        { account: manager.account }
+      );
+      await setToken.write.approve(
+        [auctionRebalanceModule.address, MAX_UINT_256.toBigInt()],
+        { account: user1.account }
+      );
+      const lastestId = await auctionRebalanceModule.read.serialIds([
+        setToken.address,
+      ]);
+      let num: number = 3000;
+      let i: number;
+      for (i = 50; i < num; i++) {
+        await auctionRebalanceModule.write.bid(
+          [setToken.address, i, eth(0.0003).toBigInt()],
+          { account: user1.account }
+        );
+      }
+      await time.increaseTo(endTime);
+      await expect(
+        auctionRebalanceModule.write.setAuctionResultSuccess(
+          [setToken.address],
+          { account: manager.account, gas: BigInt(12000000) }
+        )
+      ).to.be.fulfilled;
+      expect(
+        await auctionRebalanceModule.read.getFinalWinningTick([
+          setToken.address,
+          BigInt(1),
+        ])
+      ).to.be.equal(0);
+    });
+  });
 
   // bid on tick 0 ,1, 500, 2000, 3000,
   // bid 8 times
@@ -1479,18 +1817,6 @@ describe("AuctionRebalanceModule", function () {
     await ethToken.write.mintWithAmount([eth(1000).toBigInt()], {
       account: user2.account,
     });
-    await ethToken.write.approve(
-      [auctionRebalanceModule.address, MAX_UINT_256.toBigInt()],
-      {
-        account: user2.account,
-      }
-    );
-    await setToken.write.approve(
-      [auctionRebalanceModule.address, MAX_UINT_256.toBigInt()],
-      {
-        account: user2.account,
-      }
-    );
 
     await ethToken.write.mintWithAmount([eth(1102).toBigInt()], {
       account: user3.account,
@@ -1585,18 +1911,6 @@ describe("AuctionRebalanceModule", function () {
     await ethToken.write.mintWithAmount([eth(1000).toBigInt()], {
       account: user2.account,
     });
-    await ethToken.write.approve(
-      [auctionRebalanceModule.address, MAX_UINT_256.toBigInt()],
-      {
-        account: user2.account,
-      }
-    );
-    await setToken.write.approve(
-      [auctionRebalanceModule.address, MAX_UINT_256.toBigInt()],
-      {
-        account: user2.account,
-      }
-    );
 
     await ethToken.write.mintWithAmount([eth(1102).toBigInt()], {
       account: user3.account,
@@ -1843,6 +2157,18 @@ describe("AuctionRebalanceModule", function () {
       [auctionRebalanceModule.address, MAX_UINT_256.toBigInt()],
       {
         account: user1.account,
+      }
+    );
+    await ethToken.write.approve(
+      [auctionRebalanceModule.address, MAX_UINT_256.toBigInt()],
+      {
+        account: user2.account,
+      }
+    );
+    await setToken.write.approve(
+      [auctionRebalanceModule.address, MAX_UINT_256.toBigInt()],
+      {
+        account: user2.account,
       }
     );
 

@@ -121,7 +121,7 @@ contract AuctionRebalanceModule is ModuleBase, ReentrancyGuard {
 
     /**
      * @notice  The manager initiates the auction.
-     * @dev     .
+     * @dev     After opening the auction, unlocking sets does not need to be considered.
      * @param   _setToken  The target sets contract address of the operation.
      * @param   _rebalanceComponents  The token address that needs to be auctioned.
      * @param   _rebalanceAmounts  The number of auctions, the positive number is for the tokens sold, and the negative number is the revenue tokens.
@@ -818,7 +818,7 @@ contract AuctionRebalanceModule is ModuleBase, ReentrancyGuard {
                     _rollbackBidSets(
                         _setToken,
                         _account,
-                        -setsTokenAmountNeeded.preciseMul(proportion).add(1)
+                        -setsTokenAmountNeeded.preciseMul(proportion)
                     );
                 }
                 _rollbackBidToken(
@@ -845,11 +845,8 @@ contract AuctionRebalanceModule is ModuleBase, ReentrancyGuard {
                     ultimatelyConsumedSets
                 );
                 if (bidPrice < 0) {
-                    rollbackSetsAmount += _caculateRequiredOrRewardsSetsAmountsOnTickForBid(
-                        info.minBasePrice,
-                        info.priceSpacing,
-                        _tick,
-                        _virtualAmount
+                    rollbackSetsAmount = rollbackSetsAmount.sub(
+                        setsTokenAmountNeeded
                     );
                 }
                 _rollbackBidSets(_setToken, _account, rollbackSetsAmount);
