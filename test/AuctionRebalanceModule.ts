@@ -1099,8 +1099,9 @@ describe("AuctionRebalanceModule", function () {
         await setToken.read.balanceOf([user2.account.address])
       ).to.be.equal(beforeSets);
     });
-
-    it("Test not pay sets, win the bid to claim, on win tick, check amounts", async function () {
+    it("Test bidder no pay sets, bidder pay sets on win tick and win price < 0", async function () {});
+    it("Test bidder pay sets, on win tick and win price > 0", async function () {});
+    it("Test not pay sets, win the bid to claim, on win tick and win price = 0, check amounts", async function () {
       // claim user3 tick = 1000(win 20%)
       const {
         user3,
