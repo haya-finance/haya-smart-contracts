@@ -153,11 +153,18 @@ contract AuctionRebalanceModule is ModuleBase, ReentrancyGuard {
             "Component and unit lengths must be the same"
         );
         require(_priceSpacing > 0, "Price spcacing must be bigger than 0");
+        require(_maxTick <= MAXTICK, "Tick must less than MAXTICK");
         require(
             VIRTUAL_BASE_AMOUNT % _minBidVirtualAmount == 0,
             "Must be available in equal portions"
         );
-        require(_maxTick <= MAXTICK, "Tick must less than MAXTICK");
+        int256 portion = VIRTUAL_BASE_AMOUNT / _minBidVirtualAmount;
+        for (uint256 i = 0; i < _rebalanceAmounts.length; i++) {
+            require(
+                _rebalanceAmounts[i] % portion == 0,
+                "Must be divisible by the number of portion"
+            );
+        }
         require(_setToken.isLocked(), "Sets should be locked");
         uint256 serialId = serialIds[_setToken];
         require(
@@ -428,9 +435,6 @@ contract AuctionRebalanceModule is ModuleBase, ReentrancyGuard {
             _tick,
             _virtualAmount
         );
-        if (amount >= 0) {
-            amount = amount.add(1);
-        }
     }
 
     /**
@@ -458,12 +462,7 @@ contract AuctionRebalanceModule is ModuleBase, ReentrancyGuard {
         uint256 componentsLength = components.length;
         amounts = new int256[](componentsLength);
         for (uint256 i = 0; i < componentsLength; i++) {
-            int256 amount = rebalanceAmounts[i].preciseMul(_virtualAmount);
-            if (amount < 0) {
-                amounts[i] = amount.add(-1);
-            } else {
-                amounts[i] = amount;
-            }
+            amounts[i] = rebalanceAmounts[i].preciseMul(_virtualAmount);
         }
     }
 
@@ -876,19 +875,13 @@ contract AuctionRebalanceModule is ModuleBase, ReentrancyGuard {
         }
     }
 
-    // The specific transfer amount of the user is not recorded, and for the convenience of refund, it has been exchanged, and the user's amount is added by 1 here
     function _transferBidSets(
         ISetToken _setToken,
         address _account,
         int256 _amount
     ) internal {
         if (_amount > 0) {
-            transferFrom(
-                _setToken,
-                _account,
-                address(this),
-                uint256(_amount).add(1)
-            );
+            transferFrom(_setToken, _account, address(this), uint256(_amount));
         }
     }
 
@@ -902,9 +895,7 @@ contract AuctionRebalanceModule is ModuleBase, ReentrancyGuard {
         for (uint256 i = 0; i < _components.length; i++) {
             int256 totalAmount = _amounts[i];
             if (totalAmount < 0) {
-                int256 amount2Transfer = totalAmount
-                    .preciseMul(_virtualAmount)
-                    .add(-1);
+                int256 amount2Transfer = totalAmount.preciseMul(_virtualAmount);
                 transferFrom(
                     IERC20(_components[i]),
                     _account,

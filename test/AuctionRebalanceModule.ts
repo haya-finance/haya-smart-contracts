@@ -73,7 +73,7 @@ describe("AuctionRebalanceModule", function () {
             eth(1).toBigInt(),
             eth(0.003).toBigInt(),
             eth(0.0001).toBigInt(),
-            4097,
+            3000,
           ],
           { account: manager.account }
         )
@@ -510,7 +510,7 @@ describe("AuctionRebalanceModule", function () {
       // Each bid will pay 1 more, and if you bid twice, it will pay 2 more
       expect(
         await ethToken.read.balanceOf([user1.account.address])
-      ).to.be.equal(beforeEthBalance - paidETHAmount - BigInt(1));
+      ).to.be.equal(beforeEthBalance - paidETHAmount);
       expect(
         await setToken.read.balanceOf([user1.account.address])
       ).to.be.equal(beforeSetsBalance);
@@ -529,12 +529,10 @@ describe("AuctionRebalanceModule", function () {
       // Each bid will pay 1 more, and if you bid twice, it will pay 2 more
       expect(
         await ethToken.read.balanceOf([user1.account.address])
-      ).to.be.equal(
-        beforeEthBalance2 + (-paidETHAmount - BigInt(1)) * BigInt(2)
-      );
+      ).to.be.equal(beforeEthBalance2 + -paidETHAmount * BigInt(2));
       expect(
         await setToken.read.balanceOf([user1.account.address])
-      ).to.be.equal(beforeSetsBalance + (setsPaid - BigInt(1)) * BigInt(2));
+      ).to.be.equal(beforeSetsBalance + setsPaid * BigInt(2));
     });
 
     it("Test after rollback tickBitmap value, personal tick amounts, total tick amounts", async function () {
@@ -1044,8 +1042,7 @@ describe("AuctionRebalanceModule", function () {
       // tick 3000 rollback ? sets 2 eth
       tick = 3000;
       const price = BigInt(tick) * eth(0.01).toBigInt() + eth(-10).toBigInt();
-      const rollsetsPaid =
-        localCaculateSetsAmount(price, eth(0.02).toBigInt()) - BigInt(1);
+      const rollsetsPaid = localCaculateSetsAmount(price, eth(0.02).toBigInt());
       beforeEth = await ethToken.read.balanceOf([user1.account.address]);
       beforeSets = await setToken.read.balanceOf([user1.account.address]);
       await expect(
@@ -1149,9 +1146,8 @@ describe("AuctionRebalanceModule", function () {
       const virtualAmount = eth(0.4).toBigInt();
       const price = BigInt(tick) * eth(0.01).toBigInt() + eth(-10).toBigInt();
 
-      localCaculateSetsAmount(price, virtualAmount) - BigInt(1);
-      const rollsetsPaid =
-        localCaculateSetsAmount(price, virtualAmount) - BigInt(1);
+      localCaculateSetsAmount(price, virtualAmount);
+      const rollsetsPaid = localCaculateSetsAmount(price, virtualAmount);
       const rollethpaid = eth(320).toBigInt(); // 0.4 * 0.8 * 1000
       const beforeEth = await ethToken.read.balanceOf([user3.account.address]);
       const beforeSets = await setToken.read.balanceOf([user3.account.address]);
@@ -2009,9 +2005,5 @@ function trimHexStringToAddress(hexString: string): string {
 }
 function localCaculateSetsAmount(price: bigint, virtualAmount: bigint): bigint {
   let amount = (price * virtualAmount) / eth(1).toBigInt();
-  if (amount >= 0) {
-    // All the users need to pay need to add 1
-    amount += BigInt(1);
-  }
   return amount;
 }
