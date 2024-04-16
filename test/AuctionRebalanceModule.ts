@@ -1100,13 +1100,14 @@ describe("AuctionRebalanceModule", function () {
       ).to.be.equal(beforeSets);
     });
 
-    it("Test win the bid to claim, on win tick, check amounts", async function () {
+    it("Test not pay sets, win the bid to claim, on win tick, check amounts", async function () {
       // claim user3 tick = 1000(win 20%)
       const {
         user3,
         endTime,
         setToken,
         ethToken,
+        btcToken,
         manager,
         auctionRebalanceModule,
       } = await loadFixture(deployFullBiddedNoSetsAuctionFixture);
@@ -1147,10 +1148,16 @@ describe("AuctionRebalanceModule", function () {
       const price = BigInt(tick) * eth(0.01).toBigInt() + eth(-10).toBigInt();
 
       localCaculateSetsAmount(price, virtualAmount);
-      const rollsetsPaid = localCaculateSetsAmount(price, virtualAmount);
-      const rollethpaid = eth(320).toBigInt(); // 0.4 * 0.8 * 1000
+      // price zero, so rollsetsPaid equal zero
+      const rollEthVirtualAmount = eth(0.32).toBigInt() - BigInt(1);
+      const rollEthAmount = rollEthVirtualAmount * BigInt(1000);
+      const btcReward =
+        (((eth(0.2).toBigInt() * virtualAmount) / eth(1).toBigInt()) *
+          btc(100).toBigInt()) /
+        eth(1).toBigInt();
       const beforeEth = await ethToken.read.balanceOf([user3.account.address]);
       const beforeSets = await setToken.read.balanceOf([user3.account.address]);
+      const beforeBtc = await btcToken.read.balanceOf([user3.account.address]);
       await expect(
         auctionRebalanceModule.write.claim(
           [setToken.address, lastestId, tick],
@@ -1161,10 +1168,13 @@ describe("AuctionRebalanceModule", function () {
       ).to.be.fulfilled;
       expect(
         await ethToken.read.balanceOf([user3.account.address])
-      ).to.be.equal(beforeEth + rollethpaid);
+      ).to.be.equal(beforeEth + rollEthAmount);
       expect(
         await setToken.read.balanceOf([user3.account.address])
-      ).to.be.equal(beforeSets + rollsetsPaid);
+      ).to.be.equal(beforeSets);
+      expect(
+        await btcToken.read.balanceOf([user3.account.address])
+      ).to.be.equal(beforeBtc + btcReward);
     });
     it("Test win the bid and bigger than win tick, check amounts", async function () {
       // claim user3 tick = 2000(full)

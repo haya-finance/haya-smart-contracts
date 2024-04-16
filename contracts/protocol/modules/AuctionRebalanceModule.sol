@@ -790,41 +790,76 @@ contract AuctionRebalanceModule is ModuleBase, ReentrancyGuard {
                 info.rebalanceAmounts
             );
         } else {
-            int256 biddedVirtualAmount = _virtualAmount;
+            int256 bidPrice = _caculateTargetPriceWithTick(
+                info.minBasePrice,
+                info.priceSpacing,
+                _tick
+            );
             if (
                 info._totalVirtualAmount > VIRTUAL_BASE_AMOUNT &&
                 winTick == _tick
             ) {
-                biddedVirtualAmount = _exactTickAboveGetProportion[_setToken][
+                // Percentage of winning bids, rounded down
+                int256 proportion = _exactTickAboveGetProportion[_setToken][
                     _serialId
-                ].preciseMul(_virtualAmount);
-            }
-            int256 ultimatelyConsumedSets = _caculateRequiredOrRewardsSetsAmountsOnTickForBid(
-                    info.minBasePrice,
-                    info.priceSpacing,
-                    winTick,
-                    biddedVirtualAmount
+                ];
+                int256 biddedVirtualAmount = proportion.preciseMul(
+                    _virtualAmount
                 );
-
-            _rollbackBidSets(
-                _setToken,
-                _account,
-                setsTokenAmountNeeded.sub(ultimatelyConsumedSets)
-            );
-
-            _rollbackBidToken(
-                _account,
-                _virtualAmount.sub(biddedVirtualAmount),
-                info.rebalanceComponents,
-                info.rebalanceAmounts
-            );
-
-            _sentTokenRewards(
-                _account,
-                biddedVirtualAmount,
-                info.rebalanceComponents,
-                info.rebalanceAmounts
-            );
+                if (bidPrice > 0) {
+                    _rollbackBidSets(
+                        _setToken,
+                        _account,
+                        setsTokenAmountNeeded
+                            .sub(setsTokenAmountNeeded.preciseMul(proportion))
+                            .sub(1)
+                    );
+                } else {
+                    _rollbackBidSets(
+                        _setToken,
+                        _account,
+                        -setsTokenAmountNeeded.preciseMul(proportion).add(1)
+                    );
+                }
+                _rollbackBidToken(
+                    _account,
+                    _virtualAmount.sub(biddedVirtualAmount).sub(1),
+                    info.rebalanceComponents,
+                    info.rebalanceAmounts
+                );
+                _sentTokenRewards(
+                    _account,
+                    biddedVirtualAmount,
+                    info.rebalanceComponents,
+                    info.rebalanceAmounts
+                );
+            } else {
+                // For more accurate calculations, calculated separately, easier to understand
+                int256 ultimatelyConsumedSets = _caculateRequiredOrRewardsSetsAmountsOnTickForBid(
+                        info.minBasePrice,
+                        info.priceSpacing,
+                        winTick,
+                        _virtualAmount
+                    );
+                int256 rollbackSetsAmount = setsTokenAmountNeeded.sub(
+                    ultimatelyConsumedSets
+                );
+                if (bidPrice < 0) {
+                    rollbackSetsAmount += _caculateRequiredOrRewardsSetsAmountsOnTickForBid(
+                        info.minBasePrice,
+                        info.priceSpacing,
+                        _tick,
+                        _virtualAmount
+                    );
+                }
+                _rollbackBidSets(_setToken, _account, rollbackSetsAmount);
+                _sentTokenRewards(
+                    _account,
+                    _virtualAmount,
+                    info.rebalanceComponents,
+                    info.rebalanceAmounts
+                );
+            }
         }
     }
 
