@@ -36,7 +36,7 @@ contract AuctionRebalanceModule is ModuleBase, ReentrancyGuard {
 
     /* ============ Constants ============ */
 
-    int24 public constant MAXTICK = 3072; // Change 32767 -> 3072, Worst-case calculations: If tick 3072 requires a gas consumption of 12,000,000
+    int24 public constant MAXTICK = 4096; // Change 32767 -> 4096, Worst-case calculations: If tick 3072 requires a gas consumption of 12,000,000
 
     /* ============ Immutable ============ */
     int256 public immutable VIRTUAL_BASE_AMOUNT; // Just base for caculate
@@ -69,6 +69,7 @@ contract AuctionRebalanceModule is ModuleBase, ReentrancyGuard {
         int256 minBidVirtualAmount; // Minimum sets required for each bid.
         int256 priceSpacing;
         int256 minBasePrice; // Can be nagtive. Decimal 10**18.
+        int24 maxTick; // Allows users bid max ticks
         // _totalVirtualAmount > VIRTUAL_BASE_AMOUNT: overrecruited.
         int256 _totalVirtualAmount; //  When the bid is not completed, the final total virtual amount. Also save gas.
     }
@@ -129,6 +130,7 @@ contract AuctionRebalanceModule is ModuleBase, ReentrancyGuard {
      * @param   _targetAmountsSets  The minimum number of sets expected to be received.
      * @param   _minBidVirtualAmount  The minimum number of sets required at a time.
      * @param   _priceSpacing  Price Minimum Interval.
+     * @param   _maxTick  Price Minimum Interval.
      */
 
     function setupAuction(
@@ -139,7 +141,8 @@ contract AuctionRebalanceModule is ModuleBase, ReentrancyGuard {
         uint256 _rebalanceDuration,
         int256 _targetAmountsSets,
         int256 _minBidVirtualAmount,
-        int256 _priceSpacing
+        int256 _priceSpacing,
+        int24 _maxTick
     ) external nonReentrant onlyManagerAndValidSet(_setToken) {
         require(
             _rebalanceComponents.length > 0,
@@ -150,6 +153,7 @@ contract AuctionRebalanceModule is ModuleBase, ReentrancyGuard {
             "Component and unit lengths must be the same"
         );
         require(_priceSpacing > 0, "Price spcacing must be bigger than 0");
+        require(_maxTick <= MAXTICK, "Tick must less than MAXTICK");
         require(_setToken.isLocked(), "Sets should be locked");
         uint256 serialId = serialIds[_setToken];
         require(
@@ -168,6 +172,7 @@ contract AuctionRebalanceModule is ModuleBase, ReentrancyGuard {
         info.rebalanceAmounts = _rebalanceAmounts;
         info.minBidVirtualAmount = _minBidVirtualAmount;
         info.priceSpacing = _priceSpacing;
+        info.maxTick = _maxTick;
         info.minBasePrice = _targetAmountsSets.preciseDiv(VIRTUAL_BASE_AMOUNT);
         emit AuctionSetuped(address(_setToken), serialId);
     }
@@ -591,13 +596,15 @@ contract AuctionRebalanceModule is ModuleBase, ReentrancyGuard {
         int256 _virtualAmount
     ) internal {
         require(_tick >= 0, "Tick need be bigger than 0");
-        require(_tick <= MAXTICK, "Tick too big");
         uint256 serialId = serialIds[_setToken];
         RebalanceInfo storage info = rebalanceInfos[_setToken][serialId];
+        require(_tick <= info.maxTick, "Tick too big");
         require(
-            _virtualAmount >= info.minBidVirtualAmount,
+            _virtualAmount >= info.minBidVirtualAmount &&
+                _virtualAmount % info.minBidVirtualAmount == 0,
             "Virtual quantity not meeting the requirements"
         );
+
         int256 setsTokenAmountNeeded = _caculateRequiredOrRewardsSetsAmountsOnTickForBid(
                 info.minBasePrice,
                 info.priceSpacing,

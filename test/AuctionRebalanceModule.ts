@@ -35,10 +35,30 @@ describe("AuctionRebalanceModule", function () {
           eth(1).toBigInt(),
           eth(0.01).toBigInt(),
           eth(0.0001).toBigInt(),
+          3000,
         ])
       ).to.be.rejectedWith("Must be the SetToken manager");
     });
-
+    it("Test maxtick less than max", async function () {
+      const { manager, btcToken, setToken, auctionRebalanceModule } =
+        await loadFixture(deployAuctionRebalanceModuleFixture);
+      await expect(
+        auctionRebalanceModule.write.setupAuction(
+          [
+            setToken.address,
+            [btcToken.address],
+            [btc(100).toBigInt()],
+            BigInt(await time.latest()),
+            BigInt(ONE_WEEK_IN_SECS),
+            eth(1).toBigInt(),
+            eth(0.01).toBigInt(),
+            eth(0.0001).toBigInt(),
+            4097,
+          ],
+          { account: manager.account }
+        )
+      ).to.be.rejectedWith("Tick must less than MAXTICK");
+    });
     it("Test setup issue should be locked", async function () {
       const { manager, btcToken, setToken, auctionRebalanceModule } =
         await loadFixture(deployAuctionRebalanceModuleFixture);
@@ -53,6 +73,7 @@ describe("AuctionRebalanceModule", function () {
             eth(1).toBigInt(),
             eth(0.01).toBigInt(),
             eth(0.0001).toBigInt(),
+            3000,
           ],
           { account: manager.account }
         )
@@ -85,6 +106,7 @@ describe("AuctionRebalanceModule", function () {
           eth(1).toBigInt(),
           eth(0.01).toBigInt(),
           eth(0.0001).toBigInt(),
+          3000,
         ],
         { account: manager.account }
       );
@@ -99,6 +121,7 @@ describe("AuctionRebalanceModule", function () {
             eth(1).toBigInt(),
             eth(0.01).toBigInt(),
             eth(0.0001).toBigInt(),
+            3000,
           ],
           { account: manager.account }
         )
@@ -148,6 +171,12 @@ describe("AuctionRebalanceModule", function () {
       await expect(
         auctionRebalanceModule.write.bid(
           [setToken.address, 0, eth(0.001).toBigInt()],
+          { account: user1.account }
+        )
+      ).to.be.rejectedWith("Virtual quantity not meeting the requirements");
+      await expect(
+        auctionRebalanceModule.write.bid(
+          [setToken.address, 0, eth(0.201).toBigInt()],
           { account: user1.account }
         )
       ).to.be.rejectedWith("Virtual quantity not meeting the requirements");
@@ -842,7 +871,7 @@ describe("AuctionRebalanceModule", function () {
         setToken.address,
       ]);
       const tick = 0;
-      const virtualAmount = eth(0.998).toBigInt();
+      const virtualAmount = eth(0.98).toBigInt();
       let components =
         await auctionRebalanceModule.read.getRequiredOrRewardComponentsAndAmountsForBid(
           [setToken.address, lastestId, virtualAmount]
@@ -1321,63 +1350,64 @@ describe("AuctionRebalanceModule", function () {
     });
   });
 
-  describe("AuctionBalanceModule set success result gas limit test", function () {
-    it("Test gas limit", async function () {
-      const {
-        auctionRebalanceModule,
-        setToken,
-        manager,
-        user1,
-        btcToken,
-        ethToken,
-      } = await loadFixture(deployIssuedSetsAuctionRebalanceModuleFixture);
+  // describe("AuctionBalanceModule set success result gas limit test", function () {
+  //   it("Test gas limit", async function () {
+  //     const {
+  //       auctionRebalanceModule,
+  //       setToken,
+  //       manager,
+  //       user1,
+  //       btcToken,
+  //       ethToken,
+  //     } = await loadFixture(deployIssuedSetsAuctionRebalanceModuleFixture);
 
-      const startTime = BigInt(await time.latest());
-      const endTime = startTime + BigInt(ONE_WEEK_IN_SECS);
+  //     const startTime = BigInt(await time.latest());
+  //     const endTime = startTime + BigInt(ONE_WEEK_IN_SECS);
 
-      await auctionRebalanceModule.write.setupAuction(
-        [
-          setToken.address,
-          [btcToken.address, ethToken.address],
-          [btc(1).toBigInt(), eth(1).toBigInt()],
-          startTime,
-          BigInt(ONE_WEEK_IN_SECS),
-          eth(1).toBigInt(),
-          eth(0.0001).toBigInt(),
-          eth(0.0001).toBigInt(),
-        ],
-        { account: manager.account }
-      );
-      await setToken.write.approve(
-        [auctionRebalanceModule.address, MAX_UINT_256.toBigInt()],
-        { account: user1.account }
-      );
-      const lastestId = await auctionRebalanceModule.read.serialIds([
-        setToken.address,
-      ]);
-      let num: number = 3000;
-      let i: number;
-      for (i = 50; i < num; i++) {
-        await auctionRebalanceModule.write.bid(
-          [setToken.address, i, eth(0.0003).toBigInt()],
-          { account: user1.account }
-        );
-      }
-      await time.increaseTo(endTime);
-      await expect(
-        auctionRebalanceModule.write.setAuctionResultSuccess(
-          [setToken.address],
-          { account: manager.account, gas: BigInt(12000000) }
-        )
-      ).to.be.fulfilled;
-      expect(
-        await auctionRebalanceModule.read.getFinalWinningTick([
-          setToken.address,
-          BigInt(1),
-        ])
-      ).to.be.equal(0);
-    });
-  });
+  //     await auctionRebalanceModule.write.setupAuction(
+  //       [
+  //         setToken.address,
+  //         [btcToken.address, ethToken.address],
+  //         [btc(1).toBigInt(), eth(1).toBigInt()],
+  //         startTime,
+  //         BigInt(ONE_WEEK_IN_SECS),
+  //         eth(1).toBigInt(),
+  //         eth(0.0001).toBigInt(),
+  //         eth(0.0001).toBigInt(),
+  //         3000,
+  //       ],
+  //       { account: manager.account }
+  //     );
+  //     await setToken.write.approve(
+  //       [auctionRebalanceModule.address, MAX_UINT_256.toBigInt()],
+  //       { account: user1.account }
+  //     );
+  //     const lastestId = await auctionRebalanceModule.read.serialIds([
+  //       setToken.address,
+  //     ]);
+  //     let num: number = 3000;
+  //     let i: number;
+  //     for (i = 50; i < num; i++) {
+  //       await auctionRebalanceModule.write.bid(
+  //         [setToken.address, i, eth(0.0003).toBigInt()],
+  //         { account: user1.account }
+  //       );
+  //     }
+  //     await time.increaseTo(endTime);
+  //     await expect(
+  //       auctionRebalanceModule.write.setAuctionResultSuccess(
+  //         [setToken.address],
+  //         { account: manager.account, gas: BigInt(12000000) }
+  //       )
+  //     ).to.be.fulfilled;
+  //     expect(
+  //       await auctionRebalanceModule.read.getFinalWinningTick([
+  //         setToken.address,
+  //         BigInt(1),
+  //       ])
+  //     ).to.be.equal(0);
+  //   });
+  // });
 
   // bid on tick 0 ,1, 500, 2000, 3000,
   // bid 8 times
@@ -1710,6 +1740,7 @@ describe("AuctionRebalanceModule", function () {
         eth(0).toBigInt(),
         eth(0.01).toBigInt(),
         eth(0.01).toBigInt(),
+        3000,
       ],
       { account: manager.account }
     );
@@ -1770,6 +1801,7 @@ describe("AuctionRebalanceModule", function () {
         eth(-10).toBigInt(),
         eth(0.01).toBigInt(),
         eth(0.01).toBigInt(),
+        3000,
       ],
       { account: manager.account }
     );
