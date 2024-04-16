@@ -153,6 +153,10 @@ contract AuctionRebalanceModule is ModuleBase, ReentrancyGuard {
             "Component and unit lengths must be the same"
         );
         require(_priceSpacing > 0, "Price spcacing must be bigger than 0");
+        require(
+            VIRTUAL_BASE_AMOUNT % _minBidVirtualAmount == 0,
+            "Must be available in equal portions"
+        );
         require(_maxTick <= MAXTICK, "Tick must less than MAXTICK");
         require(_setToken.isLocked(), "Sets should be locked");
         uint256 serialId = serialIds[_setToken];

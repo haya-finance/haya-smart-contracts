@@ -59,6 +59,26 @@ describe("AuctionRebalanceModule", function () {
         )
       ).to.be.rejectedWith("Tick must less than MAXTICK");
     });
+    it("Test available in equal portions", async function () {
+      const { manager, btcToken, setToken, auctionRebalanceModule } =
+        await loadFixture(deployAuctionRebalanceModuleFixture);
+      await expect(
+        auctionRebalanceModule.write.setupAuction(
+          [
+            setToken.address,
+            [btcToken.address],
+            [btc(100).toBigInt()],
+            BigInt(await time.latest()),
+            BigInt(ONE_WEEK_IN_SECS),
+            eth(1).toBigInt(),
+            eth(0.003).toBigInt(),
+            eth(0.0001).toBigInt(),
+            4097,
+          ],
+          { account: manager.account }
+        )
+      ).to.be.rejectedWith("Must be available in equal portions");
+    });
     it("Test setup issue should be locked", async function () {
       const { manager, btcToken, setToken, auctionRebalanceModule } =
         await loadFixture(deployAuctionRebalanceModuleFixture);
