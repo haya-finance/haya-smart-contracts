@@ -236,10 +236,7 @@ describe("AuctionRebalanceModule", function () {
         setToken.address,
         lastestId,
       ]);
-      let maxTick = await auctionRebalanceModule.read._maxTicks([
-        setToken.address,
-        lastestId,
-      ]);
+
       const basePrice = auctionInfo[5];
       const priceSpacing = auctionInfo[4];
 
@@ -282,12 +279,6 @@ describe("AuctionRebalanceModule", function () {
       expect(await setToken.read.balanceOf([user1.account.address])).to.equal(
         aferSetsAmount
       );
-      expect(
-        await auctionRebalanceModule.read._maxTicks([
-          setToken.address,
-          lastestId,
-        ])
-      ).to.be.equal(tick);
 
       // tick = 1, word = 0 |000000...000010|
       expect(
@@ -350,13 +341,6 @@ describe("AuctionRebalanceModule", function () {
           11,
         ])
       ).to.be.equal(position);
-
-      expect(
-        await auctionRebalanceModule.read._maxTicks([
-          setToken.address,
-          lastestId,
-        ])
-      ).to.be.equal(tick2);
 
       // bid twice
       await auctionRebalanceModule.write.bid(
@@ -487,10 +471,7 @@ describe("AuctionRebalanceModule", function () {
         setToken.address,
         lastestId,
       ]);
-      let maxTick = await auctionRebalanceModule.read._maxTicks([
-        setToken.address,
-        lastestId,
-      ]);
+
       const basePrice = auctionInfo[5];
       const priceSpacing = auctionInfo[4];
 
@@ -1453,13 +1434,6 @@ describe("AuctionRebalanceModule", function () {
       const lastestId = await auctionRebalanceModule.read.serialIds([
         setToken.address,
       ]);
-
-      expect(
-        await auctionRebalanceModule.read._maxTicks([
-          setToken.address,
-          lastestId,
-        ])
-      ).to.be.equal(3000);
 
       expect(
         await auctionRebalanceModule.read.getActualBiddedVirtualAmount([

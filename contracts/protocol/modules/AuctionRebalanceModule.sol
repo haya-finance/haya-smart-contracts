@@ -49,7 +49,7 @@ contract AuctionRebalanceModule is ModuleBase, ReentrancyGuard {
     mapping(ISetToken => mapping(uint256 => mapping(int16 => uint256)))
         public tickBitmaps;
 
-    mapping(ISetToken => mapping(uint256 => int24)) public _maxTicks; // Each setup balance maximum tick record. If the highest record is cancelled, the maximum value will remain.
+    mapping(ISetToken => mapping(uint256 => int24)) private _maxTicks; // Each setup balance maximum tick record. If the highest record is cancelled, the maximum value will remain.
     mapping(ISetToken => mapping(bytes32 => ValuePosition.Info))
         private _valuePositions; // Storage user amount in tick and status claimed
     mapping(ISetToken => mapping(uint256 => mapping(int24 => int256)))
