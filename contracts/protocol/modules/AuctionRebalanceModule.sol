@@ -37,7 +37,7 @@ contract AuctionRebalanceModule is ModuleBase, ReentrancyGuard {
     /* ============ Constants ============ */
 
     int24 public constant MAXTICK = 4096; // Change 32767 -> 4096, Worst-case calculations: If tick 3072 requires a gas consumption of 12,000,000
-    uint256 public constant MINI_DURATION = 1 hours; // Minimum duration of the auction
+    uint256 public constant MINI_DURATION = 30 minutes; // Minimum duration of the auction
     /* ============ Immutable ============ */
     int256 public immutable VIRTUAL_BASE_AMOUNT; // Just base for caculate
 

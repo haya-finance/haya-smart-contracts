@@ -63,9 +63,12 @@ describe("AuctionRebalanceModule", function () {
       ).to.be.rejectedWith("The start time must be in the future");
     });
 
-    it("Test start time must be in the future", async function () {
+    it("Test duration must be greater than the minimum duration", async function () {
       const { manager, btcToken, setToken, auctionRebalanceModule } =
         await loadFixture(deployAuctionRebalanceModuleFixture);
+      await auctionRebalanceModule.write.lock([setToken.address], {
+        account: manager.account,
+      });
       await expect(
         auctionRebalanceModule.write.setupAuction(
           [
@@ -73,11 +76,11 @@ describe("AuctionRebalanceModule", function () {
             [btcToken.address],
             [btc(100).toBigInt()],
             BigInt((await time.latest()) + 12),
-            BigInt(3000),
-            BigInt(600),
+            BigInt(1700),
+            BigInt(1700),
             eth(1).toBigInt(),
-            eth(0.001).toBigInt(),
-            eth(0.0001).toBigInt(),
+            eth(0.01).toBigInt(),
+            eth(0.01).toBigInt(),
             3000,
           ],
           { account: manager.account }
@@ -86,7 +89,7 @@ describe("AuctionRebalanceModule", function () {
         "The duration must be greater than the minimum duration"
       );
     });
-    it("Test start time must be in the future", async function () {
+    it("Test prohibition of cancellation shall not be greater than the total duration", async function () {
       const { manager, btcToken, setToken, auctionRebalanceModule } =
         await loadFixture(deployAuctionRebalanceModuleFixture);
       await expect(
