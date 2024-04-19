@@ -37,7 +37,7 @@ contract AuctionRebalanceModule is ModuleBase, ReentrancyGuard {
     /* ============ Constants ============ */
 
     int24 public constant MAXTICK = 4096; // Change 32767 -> 4096, Worst-case calculations: If tick 3072 requires a gas consumption of 12,000,000
-
+    uint256 public constant MINI_DURATION = 1 hours; // Minimum duration of the auction
     /* ============ Immutable ============ */
     int256 public immutable VIRTUAL_BASE_AMOUNT; // Just base for caculate
 
@@ -64,6 +64,7 @@ contract AuctionRebalanceModule is ModuleBase, ReentrancyGuard {
         RebalanceStatus status; // Status.
         uint256 rebalanceStartTime; // Unix timestamp marking the start of the rebalance.
         uint256 rebalanceDuration; // Duration of the rebalance in seconds, exp 3 days.
+        uint256 prohibitedCancellationDuration; // The duration of the prohibition on cancellation before the end of the auction
         address[] rebalanceComponents; // List of component tokens involved in the rebalance.
         int256[] rebalanceAmounts; // List of component tokens rebalance amounts, maybe nagtive.
         int256 minBidVirtualAmount; // Minimum sets required for each bid.
@@ -81,6 +82,10 @@ contract AuctionRebalanceModule is ModuleBase, ReentrancyGuard {
         _;
     }
 
+    modifier onlyAllowedCancelTime(ISetToken _setToken) {
+        _validateOnlyAllowedCancelTimeOrStatus(_setToken);
+        _;
+    }
     /* ============ Events ============ */
     event AuctionSetuped(address indexed _setToken, uint256 _serialId);
 
@@ -127,6 +132,7 @@ contract AuctionRebalanceModule is ModuleBase, ReentrancyGuard {
      * @param   _rebalanceAmounts  The number of auctions, the positive number is for the tokens sold, and the negative number is the revenue tokens.
      * @param   _rebalanceStartTime  The time when the auction started.
      * @param   _rebalanceDuration  Auction duration, in seconds.
+     * @param   _prohibitedCancellationDuration  // The duration of the prohibition on cancellation before the end of the auction.
      * @param   _targetAmountsSets  The minimum number of sets expected to be received.
      * @param   _minBidVirtualAmount  The minimum number of sets required at a time.
      * @param   _priceSpacing  Price Minimum Interval.
@@ -139,11 +145,15 @@ contract AuctionRebalanceModule is ModuleBase, ReentrancyGuard {
         int256[] memory _rebalanceAmounts,
         uint256 _rebalanceStartTime,
         uint256 _rebalanceDuration,
+        uint256 _prohibitedCancellationDuration,
         int256 _targetAmountsSets,
         int256 _minBidVirtualAmount,
         int256 _priceSpacing,
         int24 _maxTick
     ) external nonReentrant onlyManagerAndValidSet(_setToken) {
+        require(_rebalanceStartTime > block.timestamp,"The start time must be in the future");
+        require(_rebalanceDuration >= MINI_DURATION, "The duration must be greater than the minimum duration");
+        require(_prohibitedCancellationDuration <= _rebalanceDuration, "The prohibition of cancellation shall not be greater than the total duration");
         require(
             _rebalanceComponents.length > 0,
             "Must have at least 1 component"
@@ -179,6 +189,7 @@ contract AuctionRebalanceModule is ModuleBase, ReentrancyGuard {
         info.status = RebalanceStatus.PROGRESSING;
         info.rebalanceStartTime = _rebalanceStartTime;
         info.rebalanceDuration = _rebalanceDuration;
+        info.prohibitedCancellationDuration = _prohibitedCancellationDuration;
         info.rebalanceComponents = _rebalanceComponents;
         info.rebalanceAmounts = _rebalanceAmounts;
         info.minBidVirtualAmount = _minBidVirtualAmount;
@@ -270,7 +281,7 @@ contract AuctionRebalanceModule is ModuleBase, ReentrancyGuard {
         external
         nonReentrant
         onlyValidAndInitializedSet(_setToken)
-        onlyAllowedBidTime(_setToken)
+        onlyAllowedCancelTime(_setToken)
     {
         require(_ticks.length > 0, "Must have at least 1 tick");
         for (uint256 i = 0; i < _ticks.length; i++) {
@@ -291,7 +302,7 @@ contract AuctionRebalanceModule is ModuleBase, ReentrancyGuard {
         external
         nonReentrant
         onlyValidAndInitializedSet(_setToken)
-        onlyAllowedBidTime(_setToken)
+        onlyAllowedCancelTime(_setToken)
     {
         _cancelBid(_setToken, _tick);
     }
@@ -1165,6 +1176,23 @@ contract AuctionRebalanceModule is ModuleBase, ReentrancyGuard {
                 info.rebalanceStartTime + info.rebalanceDuration >
                 block.timestamp,
             "Not bidding time"
+        );
+    }
+
+    function _validateOnlyAllowedCancelTimeOrStatus(
+        ISetToken _setToken
+    ) internal view {
+        uint256 id = serialIds[_setToken];
+        RebalanceInfo memory info = rebalanceInfos[_setToken][id];
+        require(
+            info.status == RebalanceStatus.PROGRESSING,
+            "Bid's status must be progressing"
+        );
+        require(
+            info.rebalanceStartTime <= block.timestamp &&
+                info.rebalanceStartTime + info.rebalanceDuration - info.prohibitedCancellationDuration >
+                block.timestamp,
+            "Not cancel time"
         );
     }
 }
