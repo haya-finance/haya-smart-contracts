@@ -595,6 +595,117 @@ describe("AuctionRebalanceModule", function () {
       ).to.be.equal(beforeSetsBalance + setsPaid * BigInt(2));
     });
 
+    it("Test bid max tick test, cancel max tick test", async function () {
+      // user1 tick = 1, tick = 3000
+      const { user1, user2, ethToken, setToken, auctionRebalanceModule } =
+        await loadFixture(deployUser1BiddedAuctionFixture);
+      const lastestId = await auctionRebalanceModule.read.serialIds([
+        setToken.address,
+      ]);
+      await ethToken.write.mintWithAmount([eth(1000000000).toBigInt()], {
+        account: user2.account,
+      });
+      await ethToken.write.approve(
+        [auctionRebalanceModule.address, MAX_UINT_256.toBigInt()],
+        {
+          account: user2.account,
+        }
+      );
+      await setToken.write.transfer(
+        [user2.account.address, eth(50).toBigInt()],
+        {
+          account: user1.account,
+        }
+      );
+      await setToken.write.approve(
+        [auctionRebalanceModule.address, MAX_UINT_256.toBigInt()],
+        {
+          account: user2.account,
+        }
+      );
+      let tick = 3000;
+      const virtualAmount = eth(0.01).toBigInt();
+      await auctionRebalanceModule.write.bid(
+        [setToken.address, tick, virtualAmount],
+        { account: user2.account }
+      );
+      expect(
+        await auctionRebalanceModule.read.maxTicks([
+          setToken.address,
+          lastestId,
+        ])
+      ).to.be.equal(3000);
+      await auctionRebalanceModule.write.cancelBid([setToken.address, tick], {
+        account: user1.account,
+      });
+      expect(
+        await auctionRebalanceModule.read.maxTicks([
+          setToken.address,
+          lastestId,
+        ])
+      ).to.be.equal(3000);
+      await auctionRebalanceModule.write.cancelBid([setToken.address, tick], {
+        account: user2.account,
+      });
+      expect(
+        await auctionRebalanceModule.read.maxTicks([
+          setToken.address,
+          lastestId,
+        ])
+      ).to.be.equal(1);
+      tick = 100;
+      await auctionRebalanceModule.write.bid(
+        [setToken.address, tick, virtualAmount],
+        { account: user2.account }
+      );
+      expect(
+        await auctionRebalanceModule.read.maxTicks([
+          setToken.address,
+          lastestId,
+        ])
+      ).to.be.equal(100);
+      await auctionRebalanceModule.write.cancelBid([setToken.address, tick], {
+        account: user2.account,
+      });
+      expect(
+        await auctionRebalanceModule.read.maxTicks([
+          setToken.address,
+          lastestId,
+        ])
+      ).to.be.equal(1);
+      await auctionRebalanceModule.write.bid(
+        [setToken.address, 2, virtualAmount],
+        { account: user2.account }
+      );
+      await auctionRebalanceModule.write.bid(
+        [setToken.address, 240, virtualAmount],
+        { account: user2.account }
+      );
+      await auctionRebalanceModule.write.bid(
+        [setToken.address, 504, virtualAmount],
+        { account: user2.account }
+      );
+      await auctionRebalanceModule.write.bid(
+        [setToken.address, 999, virtualAmount],
+        { account: user2.account }
+      );
+      expect(
+        await auctionRebalanceModule.read.maxTicks([
+          setToken.address,
+          lastestId,
+        ])
+      ).to.be.equal(999);
+      await auctionRebalanceModule.write.cancelBid([setToken.address, 999], {
+        account: user2.account,
+      });
+      expect(
+        await auctionRebalanceModule.read.maxTicks([
+          setToken.address,
+          lastestId,
+        ])
+      ).to.be.equal(504);
+    });
+
     it("Test after rollback tickBitmap value, personal tick amounts, total tick amounts", async function () {
       const { user1, user2, ethToken, setToken, auctionRebalanceModule } =
         await loadFixture(deployUser1BiddedAuctionFixture);

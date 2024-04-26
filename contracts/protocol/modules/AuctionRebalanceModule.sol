@@ -49,7 +49,7 @@ contract AuctionRebalanceModule is ModuleBase, ReentrancyGuard {
     mapping(ISetToken => mapping(uint256 => mapping(int16 => uint256)))
         public tickBitmaps;
 
-    mapping(ISetToken => mapping(uint256 => int24)) private _maxTicks; // Each setup balance maximum tick record. If the highest record is cancelled, the maximum value will remain.
+    mapping(ISetToken => mapping(uint256 => int24)) public maxTicks; // Each setup balance maximum tick record.
     mapping(ISetToken => mapping(bytes32 => ValuePosition.Info))
         private _valuePositions; // Storage user amount in tick and status claimed
     mapping(ISetToken => mapping(uint256 => mapping(int24 => int256)))
@@ -703,6 +703,23 @@ contract AuctionRebalanceModule is ModuleBase, ReentrancyGuard {
                 _setToken
             ][serialId];
             tickBitmap.flipTick(_tick, 1);
+            int24 maxtick = maxTicks[_setToken][serialId];
+            if (maxtick == _tick){
+                int24 currentTick = maxtick;
+                while (true) {
+                    (int24 next, bool inited) = tickBitmap.nextInitializedTickWithinOneWord(currentTick, 1, true);
+                    if (inited) {
+                        maxtick = next;
+                        maxTicks[_setToken][serialId] = next;
+                        break;
+                    }
+                    currentTick = next - 1;
+                    if (currentTick < 0) {
+                        maxTicks[_setToken][serialId] = 0;
+                        break;
+                    }
+                }
+            }
         }
         emit CancelBid(
             address(_setToken),
@@ -1029,7 +1046,7 @@ contract AuctionRebalanceModule is ModuleBase, ReentrancyGuard {
         ISetToken _setToken,
         uint256 _serialId
     ) internal view returns (int24, int256, int256) {
-        int24 maxTick = _maxTicks[_setToken][_serialId];
+        int24 maxTick = maxTicks[_setToken][_serialId];
         mapping(int16 => uint256) storage tickBitmap = tickBitmaps[_setToken][
             _serialId
         ];
@@ -1155,9 +1172,9 @@ contract AuctionRebalanceModule is ModuleBase, ReentrancyGuard {
         uint256 _serialId,
         int24 _tick
     ) internal {
-        int24 lastTick = _maxTicks[_setToken][_serialId];
+        int24 lastTick = maxTicks[_setToken][_serialId];
         if (lastTick < _tick) {
-            _maxTicks[_setToken][_serialId] = _tick;
+            maxTicks[_setToken][_serialId] = _tick;
         }
     }
 
