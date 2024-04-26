@@ -81,7 +81,7 @@ contract SetToken is ERC20 {
         address indexed _component,
         address indexed _positionModule
     );
-
+    event Lock(address indexed _locker, bool _isLocked);
     /* ============ Modifiers ============ */
 
     /**
@@ -365,6 +365,7 @@ contract SetToken is ERC20 {
         require(!isLocked, "Must not be locked");
         locker = msg.sender;
         isLocked = true;
+        emit Lock(msg.sender, true);
     }
 
     /**
@@ -375,6 +376,7 @@ contract SetToken is ERC20 {
         require(locker == msg.sender, "Must be locker");
         delete locker;
         isLocked = false;
+        emit Lock(msg.sender, false);
     }
 
     /**
