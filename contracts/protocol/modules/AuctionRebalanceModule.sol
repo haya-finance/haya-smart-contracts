@@ -709,7 +709,6 @@ contract AuctionRebalanceModule is ModuleBase, ReentrancyGuard {
                 while (true) {
                     (int24 next, bool inited) = tickBitmap.nextInitializedTickWithinOneWord(currentTick, 1, true);
                     if (inited) {
-                        maxtick = next;
                         maxTicks[_setToken][serialId] = next;
                         break;
                     }
