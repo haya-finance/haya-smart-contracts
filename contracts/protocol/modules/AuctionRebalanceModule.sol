@@ -163,6 +163,7 @@ contract AuctionRebalanceModule is ModuleBase, ReentrancyGuard {
             "Component and unit lengths must be the same"
         );
         require(_priceSpacing > 0, "Price spcacing must be bigger than 0");
+        require(_minBidVirtualAmount > 0, "Min virtual amount must be bigger than 0");
         require(_maxTick <= MAXTICK, "Tick must less than MAXTICK");
         require(
             VIRTUAL_BASE_AMOUNT % _minBidVirtualAmount == 0,
