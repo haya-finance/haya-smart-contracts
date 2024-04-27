@@ -47,14 +47,14 @@ const config: HardhatUserConfig = {
       ...gasOption,
     },
     sepolia: {
-      url: "https://sepolia.infura.io/v3/" + process.env.INFURA_TOKEN,
+      url: "https://arbitrum-sepolia.infura.io/v3/" + process.env.INFURA_TOKEN,
       // @ts-ignore
       accounts: process.env.SEPOLIA_DEPLOY_PRIVATE_KEY
         ? [`0x${process.env.SEPOLIA_DEPLOY_PRIVATE_KEY}`]
         : undefined,
     },
     production: {
-      url: "https://mainnet.infura.io/v3/" + process.env.INFURA_TOKEN,
+      url: "https://arbitrum-mainnet.infura.io/v3/" + process.env.INFURA_TOKEN,
       // @ts-ignore
       accounts: process.env.PRODUCTION_MAINNET_DEPLOY_PRIVATE_KEY
         ? [`0x${process.env.PRODUCTION_MAINNET_DEPLOY_PRIVATE_KEY}`]
@@ -62,9 +62,28 @@ const config: HardhatUserConfig = {
     },
   },
   etherscan: {
-    // Your API key for Etherscan
-    // Obtain one at https://etherscan.io/
-    apiKey: process.env.ETHERSCAN_TOKEN,
+    apiKey: {
+      sepolia: process.env.ARBITRUM_ETHERSCAN_TOKEN,
+      production: process.env.ARBITRUM_ETHERSCAN_TOKEN,
+    },
+    customChains: [
+      {
+        network: "sepolia",
+        chainId: 421614,
+        urls: {
+          apiURL: "https://api-sepolia.arbiscan.io/api",
+          browserURL: "https://sepolia.arbiscan.io/",
+        },
+      },
+      {
+        network: "production",
+        chainId: 42161,
+        urls: {
+          apiURL: "https://api.arbiscan.io/api",
+          browserURL: "https://sepolia.arbiscan.io/",
+        },
+      },
+    ],
   },
   sourcify: {
     enabled: true,

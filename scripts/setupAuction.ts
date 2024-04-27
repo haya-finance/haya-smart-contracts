@@ -9,7 +9,7 @@ async function main() {
   const SetTokenAddress = "0x8E6795eA1242486CF498DD587F4933005586142B";
 
   const AuctionRebalanceModuleAddress =
-    "0x86afdaCE7d815D6E2764B4c335D1994D4346e6B8";
+    "0x831424cC4530EA896bf83Fa1F7DE5909E80CE191";
 
   const AuctionRebalanceModule = await ethers.getContractFactory(
     "AuctionRebalanceModule"
