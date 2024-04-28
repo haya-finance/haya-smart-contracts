@@ -52,12 +52,12 @@ async function main() {
     console.log("Wait deployed...");
     await token.deployed();
     console.log(key, "depoyed to:", token.address);
-    await new Promise((resolve) => setTimeout(resolve, 20000));
-    await run("verify:verify", {
-      address: token.address,
-      constructorArguments: tokensMap[key],
-    });
-    console.log("All Finished.");
+    // await new Promise((resolve) => setTimeout(resolve, 20000));
+    // await run("verify:verify", {
+    //   address: token.address,
+    //   constructorArguments: tokensMap[key],
+    // });
+    // console.log("All Finished.");
   }
 }
 

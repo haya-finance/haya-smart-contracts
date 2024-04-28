@@ -1,15 +1,23 @@
 import { ethers } from "hardhat";
 async function main() {
-    const [owner] = await ethers.getSigners();
-    const SetTokenAddress = "0x8E6795eA1242486CF498DD587F4933005586142B";
+  const [owner] = await ethers.getSigners();
+  const SetTokenAddress = "";
 
-    const BasicIssuanceModuleAddress = "0xAaE7c1CC8450B98ba15FB2a18686f7890812dDa3";
-    
-    const BasicIssuanceModule = await ethers.getContractFactory("BasicIssuanceModule");
-    const deployedBasicIssuanceModule = await BasicIssuanceModule.attach(BasicIssuanceModuleAddress);
+  const BasicIssuanceModuleAddress = "";
 
-    let issue = await deployedBasicIssuanceModule.issue(SetTokenAddress, ethers.utils.parseUnits("1000", 18), owner.address);
-    await issue.wait();
+  const BasicIssuanceModule = await ethers.getContractFactory(
+    "BasicIssuanceModule"
+  );
+  const deployedBasicIssuanceModule = await BasicIssuanceModule.attach(
+    BasicIssuanceModuleAddress
+  );
+
+  let issue = await deployedBasicIssuanceModule.issue(
+    SetTokenAddress,
+    ethers.utils.parseUnits("1000", 18),
+    owner.address
+  );
+  await issue.wait();
 }
 
 main()

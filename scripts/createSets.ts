@@ -1,21 +1,19 @@
 import { ethers } from "hardhat";
 async function main() {
   const [owner] = await ethers.getSigners();
-  const SetTokenCreatorAddress = "0xC427b85123271A24c495f5D5cCF7fd2a018365B2";
+  const SetTokenCreatorAddress = "";
 
-  const BasicIssuanceModuleAddress =
-    "0xAaE7c1CC8450B98ba15FB2a18686f7890812dDa3";
+  const BasicIssuanceModuleAddress = "";
 
-  const AuctionRebalanceModuleAddress =
-    "0x831424cC4530EA896bf83Fa1F7DE5909E80CE191";
+  const AuctionRebalanceModuleAddress = "";
 
   const INTEGRATION_REGISTRY_RESOURCE_ID = 0;
   const PRICE_ORACLE_RESOURCE_ID = 1;
   const SET_VALUER_RESOURCE_ID = 2;
 
-  const USDTAddress = "0xf8E496C378B80956e0016a72c19c27D01F7e3D5f";
-  const BTCAddress = "0x4230063186699F6BBc2FAdE9716e27815c8346eC";
-  const ETHAddress = "0x8b5F184973b34F9D57A9706E31aE66d67824139B";
+  const USDTAddress = "";
+  const BTCAddress = "";
+  const ETHAddress = "";
 
   const SetTokenCreator = await ethers.getContractFactory("SetTokenCreator");
   const deployedSetTokenCreator = await SetTokenCreator.attach(

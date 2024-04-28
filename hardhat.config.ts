@@ -63,7 +63,9 @@ const config: HardhatUserConfig = {
   },
   etherscan: {
     apiKey: {
+      // @ts-ignore
       sepolia: process.env.ARBITRUM_ETHERSCAN_TOKEN,
+      // @ts-ignore
       production: process.env.ARBITRUM_ETHERSCAN_TOKEN,
     },
     customChains: [

@@ -2228,12 +2228,11 @@ describe("AuctionRebalanceModule", function () {
       user2,
     } = await loadFixture(deployIssuedSetsAuctionRebalanceModuleFixture);
     const ensToken = await hre.viem.deployContract("StandardTokenMock", [
-      owner.account.address,
-      ens(1000).toBigInt(),
       "ens",
       "ens",
       8,
     ]);
+    await ensToken.write.mintWithAmount([ens(1000).toBigInt()]);
     const startTime = BigInt((await time.latest()) + 200);
     const endTime = startTime + BigInt(ONE_WEEK_IN_SECS);
 
@@ -2434,27 +2433,23 @@ describe("AuctionRebalanceModule", function () {
     ]);
 
     const btcToken = await hre.viem.deployContract("StandardTokenMock", [
-      owner.account.address,
-      btc(20000).toBigInt(),
       "bitcoin",
       "btc",
       8,
     ]);
+    await btcToken.write.mintWithAmount([btc(20000).toBigInt()]);
     const ethToken = await hre.viem.deployContract("StandardTokenMock", [
-      owner.account.address,
-      eth(300000).toBigInt(),
       "eth",
       "eth",
       18,
     ]);
+    await ethToken.write.mintWithAmount([eth(300000).toBigInt()]);
     const usdcToken = await hre.viem.deployContract("StandardTokenMock", [
-      owner.account.address,
-      usdc(2000000).toBigInt(),
       "usdc",
       "usdc",
       6,
     ]);
-
+    await usdcToken.write.mintWithAmount([usdc(2000000).toBigInt()]);
     let tx = await setTokenCreator.write.create([
       [btcToken.address, ethToken.address, usdcToken.address],
       [btc(1).toBigInt(), eth(10).toBigInt(), usdc(100).toBigInt()],

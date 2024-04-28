@@ -1,14 +1,14 @@
 import { ethers } from "hardhat";
 async function main() {
   const [owner] = await ethers.getSigners();
-  const ControllerAddress = "0xc8548a0f72a6baa5a7bca998a10ab3b22e121f8f";
+  const ControllerAddress = "0xd5c077Efe284b060c68c4Fdf9888d4734DDe74E0";
   const IntegrationRegistryAddress =
-    "0x9B49c78E6FF64c008f0021Cf5D06681c7687DA8C";
-  const SetTokenCreatorAddress = "0xC427b85123271A24c495f5D5cCF7fd2a018365B2";
+    "0x22199Fe14E098d726b75347d35Dd5E4AC71Af09d";
+  const SetTokenCreatorAddress = "0x4DBBc91D75b69865e61632DB8c5e36C544A3B6D9";
   const BasicIssuanceModuleAddress =
-    "0xAaE7c1CC8450B98ba15FB2a18686f7890812dDa3";
+    "0x0Dd18972815D8A2b611F82F57E0bA26faaA972e1";
   const AuctionRebalanceModuleAddress =
-    "0x831424cC4530EA896bf83Fa1F7DE5909E80CE191";
+    "0x9fab487f90c0A3b20717c245004952da9827C8Ff";
 
   const INTEGRATION_REGISTRY_RESOURCE_ID = 0;
   const PRICE_ORACLE_RESOURCE_ID = 1;
