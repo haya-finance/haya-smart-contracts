@@ -3,7 +3,7 @@ async function main() {
   const [owner] = await ethers.getSigners();
 
   const UniswapSepoliaRouterContract =
-    "0x19FC234A7DE9146f30Ef1dCB1B48b035A99B634d";
+    "0x03bF31D072F676ee35b3B065a9CDFD8085Cb7002";
 
   const tokenAAddress = "0x2F4904dfb5493850077155Dd8aD6b551e28A50B1";
   const tokenBAddress = "0xaA0da0C413f93579aEbE86d59c733492aaf7096e";
