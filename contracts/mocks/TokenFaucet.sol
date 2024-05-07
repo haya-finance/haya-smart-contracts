@@ -3,7 +3,7 @@ pragma solidity 0.6.10;
 pragma experimental "ABIEncoderV2";
 import {AddressArrayUtils} from "../lib/AddressArrayUtils.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
-import {IStandardTokenMock} from "./IStandardTokenMock.sol";
+import {StandardTokenMock} from "./StandardTokenMock.sol";
 
 
 contract TokenFaucet is Ownable {
@@ -47,9 +47,9 @@ contract TokenFaucet is Ownable {
 
     function _mint2Account(address _account) internal {
         for (uint i = 0; i < components.length; i++) {
-            uint256 _amount = amount * 10**uint256(IStandardTokenMock(components[i]).decimals());
-            IStandardTokenMock(components[i]).mintWithAmount(_amount);
-            IStandardTokenMock(components[i]).transfer(_account, _amount);
+            uint256 _amount = amount * 10**uint256(StandardTokenMock(components[i]).decimals());
+            StandardTokenMock(components[i]).mintWithAmount(_amount);
+            StandardTokenMock(components[i]).transfer(_account, _amount);
         }
     }
 }
