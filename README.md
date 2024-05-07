@@ -1,6 +1,6 @@
 # Haya Finance Smart Contracts
 
-Welcome to the Haya Finance Smart Contracts repository. This repository contains the smart contracts for the Haya Finance ecosystem, built on Ethereum.
+Welcome to the Haya Finance Smart Contracts repository. This repository contains the smart contracts for the Haya Finance ecosystem, built on Arbitrum.
 
 ## Overview
 
