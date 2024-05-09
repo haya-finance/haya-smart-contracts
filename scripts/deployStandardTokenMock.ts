@@ -21,13 +21,13 @@ async function main() {
     LINK: ["LINK-Haya", "LINK-H", 18],
     NEAR: ["NEAR-Haya", "NEAR-H", 18],
     MATIC: ["MATIC-Haya", "MATIC-H", 18],
-    ICP: ["ICP-Haya", "ICP-H", 18],
+    RNDR: ["RNDR-Haya", "RNDR-H", 18],
 
     LTC: ["LTC-Haya", "LTC-H", 18],
     UNI: ["UNI-Haya", "UNI-H", 18],
     APT: ["APT-Haya", "APT-H", 18],
     FIL: ["FIL-Haya", "FIL-H", 18],
-    ATOM: ["ATOM-Haya", "ATOM-H", 18],
+    OP: ["OP-Haya", "OP-H", 18],
   };
   const keys = Object.keys(tokensMap);
   for (let key of keys) {
