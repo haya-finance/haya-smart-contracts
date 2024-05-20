@@ -8,26 +8,26 @@ async function main() {
     BTC: ["WBTC-Haya", "WBTC-H", 8],
     ETH: ["WETH-Haya", "WETH-H", 18],
     BNB: ["WBNB-Haya", "WBNB-H", 18],
-    SOL: ["SOL-Haya", "SOL-H", 18],
-    DOGE: ["DOGE-Haya", "DOGE-H", 18],
+    SOL: ["SOL-Haya", "SOL-H", 9],
+    DOGE: ["DOGE-Haya", "DOGE-H", 8],
 
-    TON: ["TON-Haya", "TON-H", 18],
+    TON: ["TON-Haya", "TON-H", 9],
     ADA: ["ADA-Haya", "ADA-H", 18],
     SHIB: ["SHIB-Haya", "SHIB-H", 18],
     AVAX: ["AVAX-Haya", "AVAX-H", 18],
-    TRX: ["TRX-Haya", "TRX-H", 18],
+    TRX: ["TRX-Haya", "TRX-H", 6],
 
     DOT: ["DOT-Haya", "DOT-H", 18],
     LINK: ["LINK-Haya", "LINK-H", 18],
-    NEAR: ["NEAR-Haya", "NEAR-H", 18],
+    NEAR: ["NEAR-Haya", "NEAR-H", 24],
     MATIC: ["MATIC-Haya", "MATIC-H", 18],
     RNDR: ["RNDR-Haya", "RNDR-H", 18],
 
     LTC: ["LTC-Haya", "LTC-H", 18],
     UNI: ["UNI-Haya", "UNI-H", 18],
-    APT: ["APT-Haya", "APT-H", 18],
+    APT: ["APT-Haya", "APT-H", 8],
     FIL: ["FIL-Haya", "FIL-H", 18],
-    OP: ["OP-Haya", "OP-H", 18],
+    ARB: ["OP-Haya", "OP-H", 18],
   };
   const keys = Object.keys(tokensMap);
   for (let key of keys) {
