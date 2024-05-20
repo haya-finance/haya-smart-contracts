@@ -2,6 +2,8 @@ import { ethers } from "hardhat";
 async function main() {
   const [owner] = await ethers.getSigners();
 
+  const manager = owner.address;
+
   const SetTokenCreatorAddress = "";
 
   const BasicIssuanceModuleAddress = "";
@@ -83,7 +85,7 @@ async function main() {
       ethers.utils.parseUnits(FIL[2] as string, FIL[1]),
     ],
     [BasicIssuanceModuleAddress, AuctionRebalanceModuleAddress],
-    owner.address,
+    manager,
     "H20",
     "H20"
   );
